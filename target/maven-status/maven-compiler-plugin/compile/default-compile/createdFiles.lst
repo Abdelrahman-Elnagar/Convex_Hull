@@ -1,0 +1,5 @@
+com\myapp\hull\algorithms\ConvexHullAlgorithm.class
+com\myapp\hull\Point3D.class
+com\myapp\hull\PointWriter.class
+com\myapp\hull\algorithms\GrahamScan.class
+com\myapp\hull\ui\ConvexHullVisualizer.class

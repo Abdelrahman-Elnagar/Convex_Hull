@@ -1,0 +1,791 @@
+package com.myapp.hull.ui;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.myapp.hull.Point2D;
+import com.myapp.hull.PointReader;
+import com.myapp.hull.PointWriter;
+import com.myapp.hull.algorithms.ChansAlgorithm;
+import com.myapp.hull.algorithms.ConvexHullAlgorithm;
+import com.myapp.hull.algorithms.GrahamScan;
+import com.myapp.hull.algorithms.MergeHullAlgorithm;
+
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.application.Application;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.DialogPane;
+import javafx.scene.control.Label;
+import javafx.scene.control.Separator;
+import javafx.scene.control.Slider;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.stage.FileChooser;
+import javafx.stage.Stage;
+import javafx.util.Duration;
+
+public class ConvexHullVisualizer extends Application {
+    // Canvas dimensions and scaling factors
+    private static final double CANVAS_WIDTH = 1200;
+    private static final double CANVAS_HEIGHT = 800;
+    private static final double PADDING = 50;
+    
+    // UI Colors
+    private static final Color BACKGROUND_COLOR = Color.rgb(20, 20, 20);
+    private static final Color PRIMARY_COLOR = Color.rgb(220, 20, 20);
+    private static final Color SECONDARY_COLOR = Color.rgb(180, 20, 20);
+    private static final Color TEXT_COLOR = Color.rgb(240, 240, 240);
+    private static final Color CANVAS_BG_COLOR = Color.WHITE;
+    private static final Color POINT_COLOR = Color.rgb(40, 40, 40);
+    private static final Color HULL_COLOR = Color.rgb(220, 20, 20);
+    
+    private Canvas canvas;
+    private GraphicsContext gc;
+    private List<Point2D> points = new ArrayList<>();
+    private List<Point2D> hull = new ArrayList<>();
+    private ConvexHullAlgorithm currentAlgorithm = new GrahamScan();
+    private Stage primaryStage;
+    private boolean animateHull = false;
+    private Timeline animation;
+    private double animationSpeed = 100; // ms per frame
+    private double pointRadius = 4;
+    private Label statusLabel;
+    
+    // Scale from canvas coordinates to point coordinates
+    private double unscaleX(double x) {
+        double minX = points.stream().mapToDouble(Point2D::getX).min().orElse(0);
+        double maxX = points.stream().mapToDouble(Point2D::getX).max().orElse(1);
+        double range = maxX - minX;
+        if (range == 0) range = 1;
+        return minX + (x - PADDING) * range / (CANVAS_WIDTH - 2 * PADDING);
+    }
+    
+    private double unscaleY(double y) {
+        double minY = points.stream().mapToDouble(Point2D::getY).min().orElse(0);
+        double maxY = points.stream().mapToDouble(Point2D::getY).max().orElse(1);
+        double range = maxY - minY;
+        if (range == 0) range = 1;
+        return minY + (CANVAS_HEIGHT - y - PADDING) * range / (CANVAS_HEIGHT - 2 * PADDING);
+    }
+    
+    // Scale from point coordinates to canvas coordinates
+    private double scaleX(double x) {
+        double minX = points.stream().mapToDouble(Point2D::getX).min().orElse(0);
+        double maxX = points.stream().mapToDouble(Point2D::getX).max().orElse(1);
+        double range = maxX - minX;
+        if (range == 0) range = 1;
+        return PADDING + (x - minX) * (CANVAS_WIDTH - 2 * PADDING) / range;
+    }
+    
+    private double scaleY(double y) {
+        double minY = points.stream().mapToDouble(Point2D::getY).min().orElse(0);
+        double maxY = points.stream().mapToDouble(Point2D::getY).max().orElse(1);
+        double range = maxY - minY;
+        if (range == 0) range = 1;
+        return CANVAS_HEIGHT - PADDING - (y - minY) * (CANVAS_HEIGHT - 2 * PADDING) / range;
+    }
+    
+    @Override
+    public void start(Stage primaryStage) {
+        this.primaryStage = primaryStage;
+        BorderPane root = new BorderPane();
+        root.setStyle("-fx-background-color: rgb(20, 20, 20);");
+        
+        // Create header
+        HBox header = createHeader();
+        root.setTop(header);
+        
+        // Create control panel
+        VBox controlPanel = createControlPanel();
+        root.setLeft(controlPanel);
+        
+        // Create canvas area with shadow effect
+        VBox canvasContainer = new VBox();
+        canvasContainer.setPadding(new Insets(20));
+        canvasContainer.setAlignment(Pos.CENTER);
+        canvasContainer.setStyle("-fx-background-color: rgb(30, 30, 30);");
+        
+        canvas = new Canvas(CANVAS_WIDTH, CANVAS_HEIGHT);
+        gc = canvas.getGraphicsContext2D();
+        
+        // Add drop shadow to canvas
+        DropShadow dropShadow = new DropShadow();
+        dropShadow.setColor(Color.rgb(0, 0, 0, 0.5));
+        dropShadow.setRadius(10);
+        canvas.setEffect(dropShadow);
+        
+        canvasContainer.getChildren().add(canvas);
+        root.setCenter(canvasContainer);
+        
+        // Create bottom section with status bar and footer
+        VBox bottomSection = new VBox();
+        bottomSection.setStyle("-fx-background-color: rgb(30, 30, 30);");
+        
+        // Add status bar
+        HBox statusBar = createStatusBar();
+        bottomSection.getChildren().add(statusBar);
+        
+        // Add footer
+        HBox footer = createFooter();
+        bottomSection.getChildren().add(footer);
+        
+        root.setBottom(bottomSection);
+        
+        // Add mouse click handler
+        canvas.setOnMouseClicked(e -> {
+            double x = e.getX();
+            double y = e.getY();
+            Point2D newPoint = new Point2D(
+                unscaleX(x),
+                unscaleY(y)
+            );
+            points.add(newPoint);
+            updateStatus("Added point at (" + String.format("%.2f", newPoint.getX()) + 
+                         ", " + String.format("%.2f", newPoint.getY()) + ")");
+            drawPoints();
+        });
+        
+        // Initial canvas setup
+        clearCanvas();
+        
+        Scene scene = new Scene(root, 1600, 900);
+        
+        // Apply CSS styles directly to the scene - no external CSS file
+        applyStyles(scene);
+        
+        primaryStage.setTitle("Premium Convex Hull Visualizer");
+        primaryStage.setScene(scene);
+        primaryStage.show();
+    }
+    
+    // Method to apply all styles directly instead of using external CSS
+    private void applyStyles(Scene scene) {
+        // Apply styles to Alert dialogs
+        scene.getRoot().setStyle("-fx-font-family: 'System';");
+    }
+    
+    private HBox createHeader() {
+        HBox header = new HBox();
+        header.setPadding(new Insets(15, 20, 15, 20));
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.setStyle("-fx-background-color: rgb(30, 30, 30);");
+        
+        Label title = new Label("PREMIUM CONVEX HULL VISUALIZER");
+        title.setFont(Font.font("System", FontWeight.BOLD, 18));
+        title.setTextFill(TEXT_COLOR);
+        
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        
+        Button helpButton = createStyledButton("Help", "question-circle");
+        helpButton.setOnAction(e -> showHelp());
+        
+        header.getChildren().addAll(title, spacer, helpButton);
+        
+        return header;
+    }
+    
+    private VBox createControlPanel() {
+        VBox panel = new VBox(15);
+        panel.setPadding(new Insets(20));
+        panel.setMinWidth(300);
+        panel.setMaxWidth(300);
+        panel.setStyle("-fx-background-color: rgb(30, 30, 30);");
+        
+        Label panelTitle = new Label("CONTROLS");
+        panelTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
+        panelTitle.setTextFill(TEXT_COLOR);
+        
+        // Add instructions section
+        VBox instructionsBox = new VBox(10);
+        instructionsBox.setPadding(new Insets(10));
+        instructionsBox.setStyle("-fx-background-color: rgb(40, 40, 40); -fx-background-radius: 5;");
+        
+        Label instructionsTitle = new Label("Instructions");
+        instructionsTitle.setFont(Font.font("System", FontWeight.BOLD, 14));
+        instructionsTitle.setTextFill(TEXT_COLOR);
+        
+        Label clickInstruction = new Label("• Click on the canvas to add points");
+        clickInstruction.setFont(Font.font("System", 12));
+        clickInstruction.setTextFill(TEXT_COLOR);
+        
+        Label dragInstruction = new Label("• Drag points to move them");
+        dragInstruction.setFont(Font.font("System", 12));
+        dragInstruction.setTextFill(TEXT_COLOR);
+        
+        Label algorithmInstruction = new Label("• Select an algorithm and click 'Compute Hull'");
+        algorithmInstruction.setFont(Font.font("System", 12));
+        algorithmInstruction.setTextFill(TEXT_COLOR);
+        
+        instructionsBox.getChildren().addAll(instructionsTitle, clickInstruction, dragInstruction, algorithmInstruction);
+        
+        // Algorithm selection with description
+        Label algoLabel = createStyledLabel("Algorithm:");
+        ComboBox<String> algorithmCombo = new ComboBox<>();
+        algorithmCombo.getItems().addAll("Graham Scan", "Chan's Algorithm", "Merge Hull");
+        algorithmCombo.setValue("Graham Scan");
+        algorithmCombo.setMaxWidth(Double.MAX_VALUE);
+        algorithmCombo.setStyle("-fx-background-color: rgb(40, 40, 40); -fx-text-fill: white;");
+        
+        // Add algorithm description label
+        Label algoDescription = new Label();
+        algoDescription.setWrapText(true);
+        algoDescription.setMaxWidth(280);
+        algoDescription.setFont(Font.font("System", 12));
+        algoDescription.setTextFill(TEXT_COLOR);
+        algoDescription.setStyle("-fx-padding: 5 0 10 0;");
+        
+        // Update description based on selected algorithm
+        algorithmCombo.setOnAction(e -> {
+            String selected = algorithmCombo.getValue();
+            switch (selected) {
+                case "Graham Scan":
+                    currentAlgorithm = new GrahamScan();
+                    algoDescription.setText("Graham Scan: Efficient O(n log n) algorithm that sorts points by angle and builds the hull incrementally. Best for general use cases.");
+                    break;
+                case "Chan's Algorithm":
+                    currentAlgorithm = new ChansAlgorithm();
+                    algoDescription.setText("Chan's Algorithm: Optimal O(n log h) algorithm that combines Graham Scan with divide-and-conquer. Best for large point sets with small hulls.");
+                    break;
+                case "Merge Hull":
+                    currentAlgorithm = new MergeHullAlgorithm();
+                    algoDescription.setText("Merge Hull: Divide-and-conquer approach that splits points into subsets and merges their hulls. Good for parallel processing.");
+                    break;
+            }
+            updateStatus("Algorithm changed to " + selected);
+            if (!hull.isEmpty()) {
+                computeAndDisplayHull();
+            }
+        });
+        
+        // Set initial description
+        algoDescription.setText("Graham Scan: Efficient O(n log n) algorithm that sorts points by angle and builds the hull incrementally. Best for general use cases.");
+        
+        // Animation controls
+        Label animLabel = createStyledLabel("Animation Speed:");
+        Slider speedSlider = createStyledSlider(50, 500, animationSpeed);
+        speedSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+            animationSpeed = newVal.doubleValue();
+            if (animation != null && animation.getStatus() == Animation.Status.RUNNING) {
+                animation.stop();
+                animateHullConstruction();
+            }
+        });
+        
+        // Point size controls
+        Label sizeLabel = createStyledLabel("Point Size:");
+        Slider sizeSlider = createStyledSlider(2, 8, pointRadius);
+        sizeSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+            pointRadius = newVal.doubleValue();
+            drawPoints();
+            if (!hull.isEmpty()) {
+                drawHull();
+            }
+        });
+        
+        // Animation toggle
+        CheckBox animateCheck = new CheckBox("Animate Hull Construction");
+        animateCheck.setTextFill(TEXT_COLOR);
+        animateCheck.setOnAction(e -> {
+            animateHull = animateCheck.isSelected();
+            updateStatus("Animation " + (animateHull ? "enabled" : "disabled"));
+        });
+        
+        // Action buttons
+        VBox buttonContainer = new VBox(10);
+        buttonContainer.setAlignment(Pos.CENTER);
+        
+        Button generateButton = createActionButton("Generate Random Points", "plus-circle");
+        generateButton.setOnAction(e -> generateRandomPoints());
+        
+        Button loadButton = createActionButton("Load Points", "folder-open");
+        loadButton.setOnAction(e -> loadPointsFromFile(primaryStage));
+        
+        Button saveButton = createActionButton("Save Hull", "save");
+        saveButton.setOnAction(e -> saveHullToFile(primaryStage));
+        
+        Button clearButton = createActionButton("Clear All", "trash");
+        clearButton.setOnAction(e -> {
+            points.clear();
+            hull.clear();
+            clearCanvas();
+            updateStatus("Canvas cleared");
+        });
+        
+        Button computeButton = createActionButton("Compute Hull", "play");
+        computeButton.setOnAction(e -> computeAndDisplayHull());
+        
+        buttonContainer.getChildren().addAll(
+            generateButton, loadButton, saveButton, clearButton, computeButton
+        );
+        
+        // Add all controls to panel
+        panel.getChildren().addAll(
+            panelTitle,
+            createSeparator(),
+            instructionsBox,
+            createSeparator(),
+            algoLabel, algorithmCombo,
+            algoDescription,
+            createSeparator(),
+            animLabel, speedSlider,
+            createSeparator(),
+            sizeLabel, sizeSlider,
+            createSeparator(),
+            animateCheck,
+            createSeparator(),
+            buttonContainer
+        );
+        
+        // Add spacer to push controls to top
+        Region spacer = new Region();
+        VBox.setVgrow(spacer, Priority.ALWAYS);
+        panel.getChildren().add(spacer);
+        
+        // Add info section at bottom
+        Label infoLabel = new Label("Click on the canvas to add points");
+        infoLabel.setTextFill(Color.rgb(180, 180, 180));
+        infoLabel.setFont(Font.font("System", 12));
+        panel.getChildren().add(infoLabel);
+        
+        return panel;
+    }
+    
+    private HBox createStatusBar() {
+        HBox statusBar = new HBox();
+        statusBar.setPadding(new Insets(5, 10, 5, 10));
+        statusBar.setStyle("-fx-background-color: rgb(40, 40, 40);");
+        
+        statusLabel = new Label("Ready");
+        statusLabel.setTextFill(Color.rgb(200, 200, 200));
+        
+        statusBar.getChildren().add(statusLabel);
+        
+        return statusBar;
+    }
+    
+    private void updateStatus(String message) {
+        statusLabel.setText(message);
+    }
+    
+    private Label createStyledLabel(String text) {
+        Label label = new Label(text);
+        label.setTextFill(TEXT_COLOR);
+        label.setFont(Font.font("System", 12));
+        return label;
+    }
+    
+    private Slider createStyledSlider(double min, double max, double value) {
+        Slider slider = new Slider(min, max, value);
+        slider.setShowTickLabels(true);
+        slider.setShowTickMarks(true);
+        slider.setMajorTickUnit((max - min) / 5);
+        slider.setMinorTickCount(4);
+        slider.setMaxWidth(Double.MAX_VALUE);
+        slider.setStyle("-fx-control-inner-background: rgb(60, 60, 60);");
+        return slider;
+    }
+    
+    private Separator createSeparator() {
+        Separator separator = new Separator();
+        separator.setStyle("-fx-background-color: rgb(60, 60, 60);");
+        return separator;
+    }
+    
+    private Button createStyledButton(String text, String iconName) {
+        Button button = new Button(text);
+        button.setStyle("-fx-background-color: rgb(40, 40, 40); -fx-text-fill: white;");
+        return button;
+    }
+    
+    private Button createActionButton(String text, String iconName) {
+        Button button = new Button(text);
+        button.setMaxWidth(Double.MAX_VALUE);
+        button.setPrefHeight(36);
+        button.setStyle(
+            "-fx-background-color: rgb(180, 20, 20); " +
+            "-fx-text-fill: white; " +
+            "-fx-font-weight: bold; " +
+            "-fx-cursor: hand;"
+        );
+        
+        // Add hover effect
+        button.setOnMouseEntered(e -> 
+            button.setStyle(
+                "-fx-background-color: rgb(220, 20, 20); " +
+                "-fx-text-fill: white; " +
+                "-fx-font-weight: bold; " +
+                "-fx-cursor: hand;"
+            )
+        );
+        
+        button.setOnMouseExited(e -> 
+            button.setStyle(
+                "-fx-background-color: rgb(180, 20, 20); " +
+                "-fx-text-fill: white; " +
+                "-fx-font-weight: bold; " +
+                "-fx-cursor: hand;"
+            )
+        );
+        
+        return button;
+    }
+    
+    private void generateRandomPoints() {
+        int numPoints = 50;
+        points.clear();
+        hull.clear();
+        
+        for (int i = 0; i < numPoints; i++) {
+            double x = Math.random() * 100;
+            double y = Math.random() * 100;
+            points.add(new Point2D(x, y));
+        }
+        
+        drawPoints();
+        updateStatus("Generated " + numPoints + " random points");
+    }
+    
+    private void loadPointsFromFile(Stage stage) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Open Points File");
+        fileChooser.getExtensionFilters().add(
+            new FileChooser.ExtensionFilter("Text Files", "*.txt")
+        );
+        
+        File file = fileChooser.showOpenDialog(stage);
+        if (file != null) {
+            try {
+                points = PointReader.readPoints(file.getPath());
+                hull.clear();
+                drawPoints();
+                updateStatus("Loaded " + points.size() + " points from " + file.getName());
+            } catch (Exception e) {
+                showError("Error loading file", e.getMessage());
+            }
+        }
+    }
+    
+    private void computeAndDisplayHull() {
+        if (points.isEmpty()) {
+            showError("Error", "No points to compute hull from");
+            return;
+        }
+        
+        try {
+            long startTime = System.currentTimeMillis();
+            hull = currentAlgorithm.computeHull(points);
+            long endTime = System.currentTimeMillis();
+            
+            if (animateHull) {
+                animateHullConstruction();
+                updateStatus("Computing hull with " + hull.size() + " vertices in " + 
+                             (endTime - startTime) + "ms (animating)");
+            } else {
+                drawPoints();
+                drawHull();
+                updateStatus("Computed hull with " + hull.size() + " vertices in " + 
+                             (endTime - startTime) + "ms");
+            }
+        } catch (Exception e) {
+            showError("Error", "Failed to compute hull: " + e.getMessage());
+        }
+    }
+    
+    private void saveHullToFile(Stage stage) {
+        if (hull.isEmpty()) {
+            showError("Error", "No hull to save");
+            return;
+        }
+        
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Save Hull Points");
+        fileChooser.getExtensionFilters().add(
+            new FileChooser.ExtensionFilter("Text Files", "*.txt")
+        );
+        
+        File file = fileChooser.showSaveDialog(stage);
+        if (file != null) {
+            try {
+                PointWriter.writePoints(hull, file.getPath());
+                updateStatus("Hull points saved to " + file.getName());
+            } catch (Exception e) {
+                showError("Error", "Failed to save hull points: " + e.getMessage());
+            }
+        }
+    }
+    
+    private void animateHullConstruction() {
+        if (animation != null) {
+            animation.stop();
+        }
+        
+        drawPoints(); // Draw base layer
+        
+        if (hull.isEmpty()) return;
+        
+        // Create animation timeline
+        animation = new Timeline();
+        final int[] currentEdge = {0};
+        
+        KeyFrame frame = new KeyFrame(Duration.millis(animationSpeed), e -> {
+            if (currentEdge[0] < hull.size()) {
+                // Draw all edges up to current
+                gc.setStroke(HULL_COLOR);
+                gc.setLineWidth(2.5);
+                
+                gc.beginPath();
+                Point2D first = hull.get(0);
+                gc.moveTo(scaleX(first.getX()), scaleY(first.getY()));
+                
+                for (int i = 1; i <= currentEdge[0]; i++) {
+                    Point2D point = hull.get(i % hull.size());
+                    gc.lineTo(scaleX(point.getX()), scaleY(point.getY()));
+                }
+                
+                gc.stroke();
+                
+                // Highlight current vertex
+                Point2D currentPoint = hull.get(currentEdge[0] % hull.size());
+                gc.setFill(HULL_COLOR);
+                double x = scaleX(currentPoint.getX());
+                double y = scaleY(currentPoint.getY());
+                gc.fillOval(x - pointRadius - 2, y - pointRadius - 2, 
+                           (pointRadius + 2) * 2, (pointRadius + 2) * 2);
+                
+                currentEdge[0]++;
+            } else {
+                animation.stop();
+                // Draw the complete hull
+                drawHull();
+            }
+        });
+        
+        animation.getKeyFrames().add(frame);
+        animation.setCycleCount(hull.size() + 1);
+        animation.play();
+    }
+    
+    private void clearCanvas() {
+        // Draw background
+        gc.setFill(CANVAS_BG_COLOR);
+        gc.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
+        
+        // Draw border
+        gc.setStroke(Color.rgb(60, 60, 60));
+        gc.setLineWidth(1);
+        gc.strokeRect(0, 0, canvas.getWidth(), canvas.getHeight());
+        
+        // Draw grid
+        gc.setStroke(Color.rgb(230, 230, 230));
+        gc.setLineWidth(0.5);
+        
+        double gridSize = 50;
+        for (double x = gridSize; x < canvas.getWidth(); x += gridSize) {
+            gc.beginPath();
+            gc.moveTo(x, 0);
+            gc.lineTo(x, canvas.getHeight());
+            gc.stroke();
+        }
+        
+        for (double y = gridSize; y < canvas.getHeight(); y += gridSize) {
+            gc.beginPath();
+            gc.moveTo(0, y);
+            gc.lineTo(canvas.getWidth(), y);
+            gc.stroke();
+        }
+    }
+    
+    private void drawPoints() {
+        clearCanvas();
+        
+        // Draw points
+        gc.setFill(POINT_COLOR);
+        
+        for (Point2D point : points) {
+            double x = scaleX(point.getX());
+            double y = scaleY(point.getY());
+            gc.fillOval(x - pointRadius, y - pointRadius, 
+                       pointRadius * 2, pointRadius * 2);
+        }
+        
+        // If we have a hull, draw it
+        if (!hull.isEmpty() && !animateHull) {
+            drawHull();
+        }
+    }
+    
+    private void drawHull() {
+        if (hull.isEmpty()) return;
+        
+        // Draw hull edges
+        gc.setStroke(HULL_COLOR);
+        gc.setLineWidth(2.5);
+        
+        // Draw hull as a closed polyline
+        gc.beginPath();
+        Point2D first = hull.get(0);
+        gc.moveTo(scaleX(first.getX()), scaleY(first.getY()));
+        
+        for (int i = 1; i < hull.size(); i++) {
+            Point2D point = hull.get(i);
+            gc.lineTo(scaleX(point.getX()), scaleY(point.getY()));
+        }
+        
+        // Close the polygon
+        gc.lineTo(scaleX(first.getX()), scaleY(first.getY()));
+        gc.stroke();
+        
+        // Draw hull area with slight transparency
+        gc.setFill(Color.rgb(220, 20, 20, 0.1));
+        gc.beginPath();
+        gc.moveTo(scaleX(first.getX()), scaleY(first.getY()));
+        
+        for (int i = 1; i < hull.size(); i++) {
+            Point2D point = hull.get(i);
+            gc.lineTo(scaleX(point.getX()), scaleY(point.getY()));
+        }
+        
+        gc.closePath();
+        gc.fill();
+        
+        // Highlight hull vertices
+        gc.setFill(HULL_COLOR);
+        for (Point2D point : hull) {
+            double x = scaleX(point.getX());
+            double y = scaleY(point.getY());
+            gc.fillOval(x - pointRadius - 2, y - pointRadius - 2, 
+                       (pointRadius + 2) * 2, (pointRadius + 2) * 2);
+        }
+    }
+    
+    private void showError(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        
+        // Style the dialog
+        DialogPane dialogPane = alert.getDialogPane();
+        dialogPane.setStyle("-fx-background-color: rgb(40, 40, 40);");
+        
+        // Style all labels in the dialog
+        for (javafx.scene.Node node : dialogPane.getChildren()) {
+            if (node instanceof Label) {
+                ((Label) node).setTextFill(Color.WHITE);
+            }
+        }
+        
+        // Style the buttons
+        for (javafx.scene.Node node : dialogPane.getChildren()) {
+            if (node instanceof javafx.scene.control.ButtonBar) {
+                for (javafx.scene.Node child : ((javafx.scene.control.ButtonBar) node).getButtons()) {
+                    if (child instanceof Button) {
+                        Button button = (Button) child;
+                        button.setStyle("-fx-background-color: rgb(180, 20, 20); -fx-text-fill: white;");
+                        
+                        // Add hover effect
+                        button.setOnMouseEntered(e -> 
+                            button.setStyle("-fx-background-color: rgb(220, 20, 20); -fx-text-fill: white;")
+                        );
+                        
+                        button.setOnMouseExited(e -> 
+                            button.setStyle("-fx-background-color: rgb(180, 20, 20); -fx-text-fill: white;")
+                        );
+                    }
+                }
+            }
+        }
+        
+        alert.showAndWait();
+    }
+    
+    private void showHelp() {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Help");
+        alert.setHeaderText("Convex Hull Visualizer Help");
+        
+        String helpText = 
+            "This application allows you to visualize convex hull algorithms.\n\n" +
+            "- Click on the canvas to add points\n" +
+            "- Use 'Generate Random Points' to create a random set\n" +
+            "- Select an algorithm from the dropdown menu\n" +
+            "- Click 'Compute Hull' to calculate and display the convex hull\n" +
+            "- Enable 'Animate Hull Construction' to see the algorithm in action\n" +
+            "- Adjust animation speed and point size with the sliders\n" +
+            "- Save your hull points or load existing point sets\n\n" +
+            "A convex hull is the smallest convex polygon that encloses all points in a set.";
+        
+        alert.setContentText(helpText);
+        
+        // Style the dialog
+        DialogPane dialogPane = alert.getDialogPane();
+        dialogPane.setStyle("-fx-background-color: rgb(40, 40, 40);");
+        
+        // Style all labels in the dialog
+        for (javafx.scene.Node node : dialogPane.getChildren()) {
+            if (node instanceof Label) {
+                ((Label) node).setTextFill(Color.WHITE);
+            }
+        }
+        
+        // Style the buttons
+        for (javafx.scene.Node node : dialogPane.getChildren()) {
+            if (node instanceof javafx.scene.control.ButtonBar) {
+                for (javafx.scene.Node child : ((javafx.scene.control.ButtonBar) node).getButtons()) {
+                    if (child instanceof Button) {
+                        Button button = (Button) child;
+                        button.setStyle("-fx-background-color: rgb(180, 20, 20); -fx-text-fill: white;");
+                        
+                        // Add hover effect
+                        button.setOnMouseEntered(e -> 
+                            button.setStyle("-fx-background-color: rgb(220, 20, 20); -fx-text-fill: white;")
+                        );
+                        
+                        button.setOnMouseExited(e -> 
+                            button.setStyle("-fx-background-color: rgb(180, 20, 20); -fx-text-fill: white;")
+                        );
+                    }
+                }
+            }
+        }
+        
+        alert.showAndWait();
+    }
+    
+    private HBox createFooter() {
+        HBox footer = new HBox();
+        footer.setPadding(new Insets(10, 20, 10, 20));
+        footer.setAlignment(Pos.CENTER);
+        footer.setStyle("-fx-background-color: rgb(30, 30, 30);");
+        
+        Label footerText = new Label("Elite Computation by Abdelrahman Elnagar, Alaa Ashraf and Sarah Elfeel");
+        footerText.setFont(Font.font("System", FontWeight.BOLD, 14));
+        footerText.setTextFill(TEXT_COLOR);
+        
+        footer.getChildren().add(footerText);
+        return footer;
+    }
+    
+    public static void main(String[] args) {
+        launch(args);
+    }
+}

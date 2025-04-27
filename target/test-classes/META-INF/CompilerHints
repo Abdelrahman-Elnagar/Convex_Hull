@@ -1,0 +1,13 @@
+dontinline,*.*_all_jmhStub
+dontinline,*.*_avgt_jmhStub
+dontinline,*.*_sample_jmhStub
+dontinline,*.*_ss_jmhStub
+dontinline,*.*_thrpt_jmhStub
+inline,com/myapp/hull/algorithms/AlgorithmBenchmark.chansAlgorithm
+inline,com/myapp/hull/algorithms/AlgorithmBenchmark.grahamScan
+inline,com/myapp/hull/algorithms/AlgorithmBenchmark.mergeHull
+inline,com/myapp/hull/algorithms/AlgorithmBenchmark.setup
+inline,com/myapp/hull/algorithms/ComplexityBenchmark.benchmarkChansAlgorithm
+inline,com/myapp/hull/algorithms/ComplexityBenchmark.benchmarkGrahamScan
+inline,com/myapp/hull/algorithms/ComplexityBenchmark.benchmarkMergeHull
+inline,com/myapp/hull/algorithms/ComplexityBenchmark.setup
