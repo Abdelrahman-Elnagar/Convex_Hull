@@ -1,14 +1,14 @@
 package com.myapp.hull;
 
-import com.myapp.hull.algorithms.ChansAlgorithm;
-import com.myapp.hull.algorithms.ConvexHullAlgorithm;
-import com.myapp.hull.algorithms.GrahamScan;
-import com.myapp.hull.algorithms.MergeHullAlgorithm;
-
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import com.myapp.hull.algorithms.ChansAlgorithm;
+import com.myapp.hull.algorithms.ConvexHullAlgorithm;
+import com.myapp.hull.algorithms.GrahamScan;
+import com.myapp.hull.algorithms.MergeHullAlgorithm;
 
 /**
  * Command-line driver for convex hull algorithms.
