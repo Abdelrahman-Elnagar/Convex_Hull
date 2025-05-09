@@ -590,7 +590,7 @@ public class ConvexHullVisualizer extends Application {
             if (animateHull) {
                 if (currentAlgorithm instanceof MergeHullAlgorithm) {
                     animateMergeHull();
-                } else if (isChanAlgorithm) {
+                } else if (currentAlgorithm instanceof ChansAlgorithm) {
                     animateChanAlgorithm();
                 } else {
                     animateHullConstruction();
