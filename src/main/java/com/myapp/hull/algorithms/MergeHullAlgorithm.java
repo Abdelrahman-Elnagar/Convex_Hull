@@ -14,9 +14,13 @@ import com.myapp.hull.Point2D;
  * Time complexity: O(n log n)
  */
 public class MergeHullAlgorithm implements ConvexHullAlgorithm {
+    private List<List<Point2D>> computationSteps = new ArrayList<>();
     
     @Override
     public List<Point2D> computeHull(List<Point2D> points) {
+        // Clear previous computation steps
+        computationSteps.clear();
+        
         // Handle base cases
         if (points == null || points.isEmpty()) {
             return new ArrayList<>();
@@ -28,17 +32,21 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
         
         // Special case for single point
         if (pointsArray.length == 1) {
+            computationSteps.add(new ArrayList<>(Arrays.asList(pointsArray)));
             return new ArrayList<>(Arrays.asList(pointsArray));
         }
         
         // Check if all points are collinear
         if (areAllCollinear(pointsArray)) {
             Point2D[] extremePoints = findExtremePoints(pointsArray);
+            computationSteps.add(new ArrayList<>(Arrays.asList(extremePoints)));
             return new ArrayList<>(Arrays.asList(extremePoints));
         }
         
         if (pointsArray.length <= 3) {
-            return handleSmallCases(pointsArray);
+            List<Point2D> result = handleSmallCases(pointsArray);
+            computationSteps.add(new ArrayList<>(result));
+            return result;
         }
         
         // Sort by x-coordinate
@@ -47,11 +55,17 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
             return xCompare != 0 ? xCompare : Double.compare(a.getY(), b.getY());
         });
         
+        // Record initial sorted points
+        computationSteps.add(new ArrayList<>(Arrays.asList(pointsArray)));
+        
         // Apply divide-and-conquer algorithm
         List<Point2D> hull = divideAndConquerHull(pointsArray);
         
         // Ensure the points are in the expected order (start with bottom-left point)
         arrangeHullStartingFromBottomLeft(hull);
+        
+        // Record final hull
+        computationSteps.add(new ArrayList<>(hull));
         
         return hull;
     }
@@ -99,7 +113,9 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
     private List<Point2D> divideAndConquerHull(Point2D[] points) {
         // Base case
         if (points.length <= 3) {
-            return handleSmallCases(points);
+            List<Point2D> result = handleSmallCases(points);
+            computationSteps.add(new ArrayList<>(result));
+            return result;
         }
         
         // Step 1: Divide the set into two halves
@@ -107,12 +123,31 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
         Point2D[] leftSet = Arrays.copyOfRange(points, 0, mid);
         Point2D[] rightSet = Arrays.copyOfRange(points, mid, points.length);
         
+        // Record split visualization step
+        List<Point2D> splitStep = new ArrayList<>();
+        splitStep.addAll(Arrays.asList(leftSet));
+        splitStep.add(new Point2D(Double.NaN, Double.NaN)); // separator
+        splitStep.addAll(Arrays.asList(rightSet));
+        computationSteps.add(splitStep);
+        
         // Step 2: Recursively find convex hulls of the two sets
         List<Point2D> leftHull = divideAndConquerHull(leftSet);
         List<Point2D> rightHull = divideAndConquerHull(rightSet);
         
+        // Record sub-hulls visualization step
+        List<Point2D> subHullStep = new ArrayList<>();
+        subHullStep.addAll(leftHull);
+        subHullStep.add(new Point2D(Double.NaN, Double.NaN)); // separator
+        subHullStep.addAll(rightHull);
+        computationSteps.add(subHullStep);
+        
         // Step 3: Merge the two convex hulls
-        return mergeHulls(leftHull, rightHull);
+        List<Point2D> merged = mergeHulls(leftHull, rightHull);
+        
+        // Record merged hull
+        computationSteps.add(merged);
+        
+        return merged;
     }
     
     private List<Point2D> handleSmallCases(Point2D[] points) {
@@ -452,5 +487,9 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
             double angle2 = Math.atan2(p2.getY() - centerY, p2.getX() - centerX);
             return Double.compare(angle1, angle2);
         });
+    }
+    
+    public List<List<Point2D>> getComputationSteps() {
+        return new ArrayList<>(computationSteps);
     }
 } 

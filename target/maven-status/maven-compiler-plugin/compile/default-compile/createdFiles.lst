@@ -7,5 +7,4 @@ com\myapp\hull\algorithms\GrahamScan.class
 com\myapp\hull\ui\ConvexHullVisualizer.class
 com\myapp\hull\algorithms\ConvexHullAlgorithm.class
 com\myapp\hull\PointWriter.class
-com\myapp\hull\algorithms\MergeHullAlgorithm$Rotation.class
 com\myapp\hull\benchmark\SimpleBenchmark.class
