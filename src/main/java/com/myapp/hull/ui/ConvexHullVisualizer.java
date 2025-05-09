@@ -11,11 +11,14 @@ import com.myapp.hull.algorithms.ChansAlgorithm;
 import com.myapp.hull.algorithms.ConvexHullAlgorithm;
 import com.myapp.hull.algorithms.GrahamScan;
 import com.myapp.hull.algorithms.MergeHullAlgorithm;
+import com.myapp.hull.algorithms.MergeHullFX;
 
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -240,7 +243,7 @@ public class ConvexHullVisualizer extends Application {
         // Algorithm selection with description
         Label algoLabel = createStyledLabel("Algorithm:");
         ComboBox<String> algorithmCombo = new ComboBox<>();
-        algorithmCombo.getItems().addAll("Graham Scan", "Chan's Algorithm", "Merge Hull");
+        algorithmCombo.getItems().addAll("Graham Scan", "Chan's Algorithm", "Merge Hull", "Merge 2");
         algorithmCombo.setValue("Graham Scan");
         algorithmCombo.setMaxWidth(Double.MAX_VALUE);
         algorithmCombo.setStyle("-fx-background-color: rgb(40, 40, 40); -fx-text-fill: white;");
@@ -254,25 +257,32 @@ public class ConvexHullVisualizer extends Application {
         algoDescription.setStyle("-fx-padding: 5 0 10 0;");
         
         // Update description based on selected algorithm
-        algorithmCombo.setOnAction(e -> {
-            String selected = algorithmCombo.getValue();
-            switch (selected) {
-                case "Graham Scan":
-                    currentAlgorithm = new GrahamScan();
-                    algoDescription.setText("Graham Scan: Efficient O(n log n) algorithm that sorts points by angle and builds the hull incrementally. Best for general use cases.");
-                    break;
-                case "Chan's Algorithm":
-                    currentAlgorithm = new ChansAlgorithm();
-                    algoDescription.setText("Chan's Algorithm: Optimal O(n log h) algorithm that combines Graham Scan with divide-and-conquer. Best for large point sets with small hulls.");
-                    break;
-                case "Merge Hull":
-                    currentAlgorithm = new MergeHullAlgorithm();
-                    algoDescription.setText("Merge Hull: Divide-and-conquer approach that splits points into subsets and merges their hulls. Good for parallel processing.");
-                    break;
-            }
-            updateStatus("Algorithm changed to " + selected);
-            if (!hull.isEmpty()) {
-                computeAndDisplayHull();
+        algorithmCombo.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent e) {
+                String selected = algorithmCombo.getValue();
+                switch (selected) {
+                    case "Graham Scan":
+                        currentAlgorithm = new GrahamScan();
+                        algoDescription.setText("Graham Scan: Efficient O(n log n) algorithm that sorts points by angle and builds the hull incrementally. Best for general use cases.");
+                        break;
+                    case "Chan's Algorithm":
+                        currentAlgorithm = new ChansAlgorithm();
+                        algoDescription.setText("Chan's Algorithm: Optimal O(n log h) algorithm that combines Graham Scan with divide-and-conquer. Best for large point sets with small hulls.");
+                        break;
+                    case "Merge Hull":
+                        currentAlgorithm = new MergeHullAlgorithm();
+                        algoDescription.setText("Merge Hull: Divide-and-conquer approach that splits points into subsets and merges their hulls. Good for parallel processing.");
+                        break;
+                    case "Merge 2":
+                        currentAlgorithm = new MergeHullFX(); // Placeholder for actual implementation
+                        algoDescription.setText("Merge 2: Placeholder for a future algorithm. Currently uses Merge Hull.");
+                        break;
+                }
+                updateStatus("Algorithm changed to " + selected);
+                if (!hull.isEmpty()) {
+                    computeAndDisplayHull();
+                }
             }
         });
         

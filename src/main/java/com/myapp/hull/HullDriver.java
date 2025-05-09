@@ -8,6 +8,7 @@ import java.util.Map;
 import com.myapp.hull.algorithms.ChansAlgorithm;
 import com.myapp.hull.algorithms.ConvexHullAlgorithm;
 import com.myapp.hull.algorithms.GrahamScan;
+import com.myapp.hull.algorithms.MergeHullFX;
 import com.myapp.hull.algorithms.MergeHullAlgorithm;
 
 /**
@@ -21,6 +22,7 @@ public class HullDriver {
         ALGORITHMS.put("graham", new GrahamScan());
         ALGORITHMS.put("chan", new ChansAlgorithm());
         ALGORITHMS.put("merge", new MergeHullAlgorithm());
+        ALGORITHMS.put("merge2", new MergeHullFX());
     }
 
     public static void main(String[] args) {
