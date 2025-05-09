@@ -4,7 +4,6 @@ com\myapp\hull\Point2D.class
 com\myapp\hull\PointReader.class
 com\myapp\hull\algorithms\ChansAlgorithm.class
 com\myapp\hull\algorithms\GrahamScan.class
-com\myapp\hull\algorithms\JarvisHelper.class
 com\myapp\hull\ui\ConvexHullVisualizer.class
 com\myapp\hull\algorithms\ConvexHullAlgorithm.class
 com\myapp\hull\PointWriter.class

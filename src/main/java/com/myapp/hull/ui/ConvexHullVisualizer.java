@@ -10,6 +10,7 @@ import com.myapp.hull.PointWriter;
 import com.myapp.hull.algorithms.ChansAlgorithm;
 import com.myapp.hull.algorithms.ConvexHullAlgorithm;
 import com.myapp.hull.algorithms.GrahamScan;
+import com.myapp.hull.algorithms.JarvisMarch;
 import com.myapp.hull.algorithms.MergeHullAlgorithm;
 
 import javafx.animation.Animation;
@@ -68,6 +69,12 @@ public class ConvexHullVisualizer extends Application {
     private double animationSpeed = 100; // ms per frame
     private double pointRadius = 4;
     private Label statusLabel;
+    private List<List<Point2D>> partialHulls = new ArrayList<>();
+    private boolean isChanAlgorithm = false;
+    private int currentChanStep = 0;
+    private static final int CHAN_STEP_GRAHAM = 0;
+    private static final int CHAN_STEP_JARVIS = 1;
+    private static final int CHAN_STEP_FINAL = 2;
     
     // Scale from canvas coordinates to point coordinates
     private double unscaleX(double x) {
@@ -240,7 +247,12 @@ public class ConvexHullVisualizer extends Application {
         // Algorithm selection with description
         Label algoLabel = createStyledLabel("Algorithm:");
         ComboBox<String> algorithmCombo = new ComboBox<>();
-        algorithmCombo.getItems().addAll("Graham Scan", "Chan's Algorithm", "Merge Hull");
+        algorithmCombo.getItems().addAll(
+            "Graham Scan",
+            "Chan's Algorithm",
+            "Merge Hull",
+            "Jarvis March"
+        );
         algorithmCombo.setValue("Graham Scan");
         algorithmCombo.setMaxWidth(Double.MAX_VALUE);
         algorithmCombo.setStyle("-fx-background-color: rgb(40, 40, 40); -fx-text-fill: white;");
@@ -268,6 +280,10 @@ public class ConvexHullVisualizer extends Application {
                 case "Merge Hull":
                     currentAlgorithm = new MergeHullAlgorithm();
                     algoDescription.setText("Merge Hull: Divide-and-conquer approach that splits points into subsets and merges their hulls. Good for parallel processing.");
+                    break;
+                case "Jarvis March":
+                    currentAlgorithm = new JarvisMarch();
+                    algoDescription.setText("Jarvis March: Simple O(nh) algorithm that wraps around the points like a gift. Good for small point sets with few hull points.");
                     break;
             }
             updateStatus("Algorithm changed to " + selected);
@@ -484,6 +500,34 @@ public class ConvexHullVisualizer extends Application {
         }
     }
     
+    private List<Point2D> sortHullPointsForRendering(List<Point2D> hullPoints) {
+        if (hullPoints.size() <= 2) return hullPoints;
+        
+        // Find centroid of hull points
+        double centerX = 0, centerY = 0;
+        for (Point2D p : hullPoints) {
+            centerX += p.getX();
+            centerY += p.getY();
+        }
+        centerX /= hullPoints.size();
+        centerY /= hullPoints.size();
+        
+        // Create a copy of hull points for sorting
+        List<Point2D> sortedHull = new ArrayList<>(hullPoints);
+        
+        // Sort by polar angle with respect to centroid
+        final double finalCenterX = centerX;
+        final double finalCenterY = centerY;
+        
+        sortedHull.sort((p1, p2) -> {
+            double angle1 = Math.atan2(p1.getY() - finalCenterY, p1.getX() - finalCenterX);
+            double angle2 = Math.atan2(p2.getY() - finalCenterY, p2.getX() - finalCenterX);
+            return Double.compare(angle1, angle2);
+        });
+        
+        return sortedHull;
+    }
+    
     private void computeAndDisplayHull() {
         if (points.isEmpty()) {
             showError("Error", "No points to compute hull from");
@@ -492,11 +536,32 @@ public class ConvexHullVisualizer extends Application {
         
         try {
             long startTime = System.currentTimeMillis();
-            hull = currentAlgorithm.computeHull(points);
+            
+            // Check if we're using Chan's Algorithm
+            isChanAlgorithm = currentAlgorithm instanceof ChansAlgorithm;
+            if (isChanAlgorithm) {
+                currentChanStep = CHAN_STEP_GRAHAM;
+                partialHulls.clear();
+                
+                // Get the partial hulls from Chan's Algorithm
+                ChansAlgorithm chan = (ChansAlgorithm) currentAlgorithm;
+                partialHulls = chan.getPartialHulls(points);
+                hull = chan.computeHull(points);
+            } else {
+                hull = currentAlgorithm.computeHull(points);
+            }
+            
+            // Sort hull points for proper visualization
+            hull = sortHullPointsForRendering(hull);
+            
             long endTime = System.currentTimeMillis();
             
             if (animateHull) {
-                animateHullConstruction();
+                if (isChanAlgorithm) {
+                    animateChanAlgorithm();
+                } else {
+                    animateHullConstruction();
+                }
                 updateStatus("Computing hull with " + hull.size() + " vertices in " + 
                              (endTime - startTime) + "ms (animating)");
             } else {
@@ -584,6 +649,153 @@ public class ConvexHullVisualizer extends Application {
         animation.play();
     }
     
+    private void animateChanAlgorithm() {
+        if (animation != null) {
+            animation.stop();
+        }
+        
+        drawPoints(); // Draw base layer
+        
+        if (hull.isEmpty()) return;
+        
+        // Create animation timeline
+        animation = new Timeline();
+        final int[] currentEdge = {0};
+        
+        KeyFrame frame = new KeyFrame(Duration.millis(animationSpeed), e -> {
+            switch (currentChanStep) {
+                case CHAN_STEP_GRAHAM:
+                    // Draw partial hulls from Graham Scan
+                    drawPartialHulls();
+                    if (currentEdge[0] >= partialHulls.size()) {
+                        currentChanStep = CHAN_STEP_JARVIS;
+                        currentEdge[0] = 0;
+                    } else {
+                        currentEdge[0]++;
+                    }
+                    break;
+                    
+                case CHAN_STEP_JARVIS:
+                    // Draw Jarvis March steps
+                    if (currentEdge[0] < hull.size()) {
+                        drawJarvisStep(currentEdge[0]);
+                        currentEdge[0]++;
+                    } else {
+                        currentChanStep = CHAN_STEP_FINAL;
+                        currentEdge[0] = 0;
+                    }
+                    break;
+                    
+                case CHAN_STEP_FINAL:
+                    // Draw final hull
+                    drawHull();
+                    animation.stop();
+                    break;
+            }
+        });
+        
+        animation.getKeyFrames().add(frame);
+        animation.setCycleCount(Animation.INDEFINITE);
+        animation.play();
+    }
+    
+    private void drawPartialHulls() {
+        // Draw each partial hull with a different color
+        Color[] colors = {
+            Color.rgb(220, 20, 20, 0.3),   // Red
+            Color.rgb(20, 220, 20, 0.3),   // Green
+            Color.rgb(20, 20, 220, 0.3),   // Blue
+            Color.rgb(220, 220, 20, 0.3),  // Yellow
+            Color.rgb(220, 20, 220, 0.3),  // Magenta
+            Color.rgb(20, 220, 220, 0.3)   // Cyan
+        };
+        
+        Color[] edgeColors = {
+            Color.rgb(220, 20, 20),   // Red
+            Color.rgb(20, 220, 20),   // Green
+            Color.rgb(20, 20, 220),   // Blue
+            Color.rgb(220, 220, 20),  // Yellow
+            Color.rgb(220, 20, 220),  // Magenta
+            Color.rgb(20, 220, 220)   // Cyan
+        };
+        
+        for (int i = 0; i < partialHulls.size(); i++) {
+            List<Point2D> partialHull = partialHulls.get(i);
+            Color hullColor = colors[i % colors.length];
+            Color edgeColor = edgeColors[i % edgeColors.length];
+            
+            if (partialHull.size() > 1) {
+                // Draw filled area
+                gc.setFill(hullColor);
+                gc.beginPath();
+                Point2D first = partialHull.get(0);
+                gc.moveTo(scaleX(first.getX()), scaleY(first.getY()));
+                
+                for (int j = 1; j < partialHull.size(); j++) {
+                    Point2D point = partialHull.get(j);
+                    gc.lineTo(scaleX(point.getX()), scaleY(point.getY()));
+                }
+                
+                // Close the partial hull
+                gc.lineTo(scaleX(first.getX()), scaleY(first.getY()));
+                gc.closePath();
+                gc.fill();
+                
+                // Draw edges
+                gc.setStroke(edgeColor);
+                gc.setLineWidth(2);
+                gc.stroke();
+            }
+            
+            // Highlight vertices
+            gc.setFill(edgeColor);
+            for (Point2D point : partialHull) {
+                double x = scaleX(point.getX());
+                double y = scaleY(point.getY());
+                gc.fillOval(x - pointRadius - 1, y - pointRadius - 1, 
+                           (pointRadius + 1) * 2, (pointRadius + 1) * 2);
+            }
+        }
+    }
+    
+    private void drawJarvisStep(int step) {
+        // Draw all edges up to current step
+        gc.setStroke(HULL_COLOR);
+        gc.setLineWidth(2.5);
+        
+        gc.beginPath();
+        Point2D first = hull.get(0);
+        gc.moveTo(scaleX(first.getX()), scaleY(first.getY()));
+        
+        for (int i = 1; i <= step; i++) {
+            Point2D point = hull.get(i % hull.size());
+            gc.lineTo(scaleX(point.getX()), scaleY(point.getY()));
+        }
+        
+        gc.stroke();
+        
+        // Draw filled area for current step with higher transparency
+        gc.setFill(Color.rgb(220, 20, 20, 0.15)); // Increased transparency
+        gc.beginPath();
+        gc.moveTo(scaleX(first.getX()), scaleY(first.getY()));
+        
+        for (int i = 1; i <= step; i++) {
+            Point2D point = hull.get(i % hull.size());
+            gc.lineTo(scaleX(point.getX()), scaleY(point.getY()));
+        }
+        
+        gc.closePath();
+        gc.fill();
+        
+        // Highlight current vertex
+        Point2D currentPoint = hull.get(step % hull.size());
+        gc.setFill(HULL_COLOR);
+        double x = scaleX(currentPoint.getX());
+        double y = scaleY(currentPoint.getY());
+        gc.fillOval(x - pointRadius - 2, y - pointRadius - 2, 
+                   (pointRadius + 2) * 2, (pointRadius + 2) * 2);
+    }
+    
     private void clearCanvas() {
         // Draw background
         gc.setFill(CANVAS_BG_COLOR);
@@ -654,8 +866,8 @@ public class ConvexHullVisualizer extends Application {
         gc.lineTo(scaleX(first.getX()), scaleY(first.getY()));
         gc.stroke();
         
-        // Draw hull area with slight transparency
-        gc.setFill(Color.rgb(220, 20, 20, 0.1));
+        // Draw hull area with higher transparency
+        gc.setFill(Color.rgb(220, 20, 20, 0.2)); // Increased transparency
         gc.beginPath();
         gc.moveTo(scaleX(first.getX()), scaleY(first.getY()));
         

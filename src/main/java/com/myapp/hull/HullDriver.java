@@ -1,18 +1,19 @@
 package com.myapp.hull;
 
-import com.myapp.hull.algorithms.ChansAlgorithm;
-import com.myapp.hull.algorithms.ConvexHullAlgorithm;
-import com.myapp.hull.algorithms.GrahamScan;
-import com.myapp.hull.algorithms.MergeHullAlgorithm;
-
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.myapp.hull.algorithms.ChansAlgorithm;
+import com.myapp.hull.algorithms.ConvexHullAlgorithm;
+import com.myapp.hull.algorithms.GrahamScan;
+import com.myapp.hull.algorithms.JarvisMarch;
+import com.myapp.hull.algorithms.MergeHullAlgorithm;
+
 /**
  * Command-line driver for convex hull algorithms.
- * Usage: java HullDriver --algorithm=graham|chan|merge --input=path.txt
+ * Usage: java HullDriver --algorithm=graham|chan|merge|jarvis --input=path.txt
  */
 public class HullDriver {
     private static final Map<String, ConvexHullAlgorithm> ALGORITHMS = new HashMap<>();
@@ -21,6 +22,7 @@ public class HullDriver {
         ALGORITHMS.put("graham", new GrahamScan());
         ALGORITHMS.put("chan", new ChansAlgorithm());
         ALGORITHMS.put("merge", new MergeHullAlgorithm());
+        ALGORITHMS.put("jarvis", new JarvisMarch());
     }
 
     public static void main(String[] args) {
@@ -80,10 +82,11 @@ public class HullDriver {
     }
 
     private static void printUsage() {
-        System.err.println("Usage: java HullDriver --algorithm=graham|chan|merge --input=path.txt");
+        System.err.println("Usage: java HullDriver --algorithm=graham|chan|merge|jarvis --input=path.txt");
         System.err.println("Algorithms:");
         System.err.println("  graham - Graham Scan algorithm (O(n log n))");
         System.err.println("  chan   - Chan's algorithm (O(n log h))");
         System.err.println("  merge  - Merge Hull algorithm (O(n log n))");
+        System.err.println("  jarvis - Jarvis March algorithm (O(n h))");
     }
 } 

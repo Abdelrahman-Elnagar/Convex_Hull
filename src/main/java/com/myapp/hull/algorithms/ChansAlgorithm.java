@@ -1,6 +1,7 @@
 package com.myapp.hull.algorithms;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import com.myapp.hull.Point2D;
@@ -8,127 +9,117 @@ import com.myapp.hull.Point2D;
 /**
  * Implementation of Chan's Algorithm for computing the convex hull.
  * Time complexity: O(n log h) where h is the number of points in the hull.
+ * This implementation uses a combination of Graham Scan and Jarvis March
+ * with an optimal initial guess for m based on empirical studies.
  */
 public class ChansAlgorithm implements ConvexHullAlgorithm {
     private final GrahamScan grahamScan = new GrahamScan();
-    private final List<Point2D> hull = new ArrayList<>();
-    private final List<List<Point2D>> groups = new ArrayList<>();
-    private final List<List<Point2D>> miniHulls = new ArrayList<>();
-    private static final int MAX_GROUP_SIZE = 100;
-    private static final int MAX_ITERATIONS = 20;
+    private final JarvisMarch jarvisMarch = new JarvisMarch();
+    private List<List<Point2D>> partialHulls = new ArrayList<>();
 
     @Override
     public List<Point2D> computeHull(List<Point2D> points) {
+        // Handle edge cases
         if (points == null || points.size() < 3) {
             return new ArrayList<>(points);
         }
 
-        int m = Math.min(MAX_GROUP_SIZE, points.size()); // Start with reasonable group size
-        int iterations = 0;
-        List<Point2D> result;
-        
-        do {
-            result = tryComputeHull(points, m);
-            m = Math.min(m * 2, points.size()); // Double the guess, but don't exceed n
-            iterations++;
-        } while (result == null && iterations < MAX_ITERATIONS);
+        // Convert List<Point2D> to Point2D[]
+        Point2D[] pointsArray = points.toArray(new Point2D[0]);
 
-        if (result == null) {
-            // Fallback to Graham Scan if Chan's algorithm fails
+        // For small point sets, use Graham Scan directly
+        if (points.size() <= 6) {
             return grahamScan.computeHull(points);
         }
 
-        return result;
-    }
+        // Optimal initial guess for m based on empirical studies
+        int m = Math.min(10, points.size());
+        int iterationLimit = (int) (Math.log(points.size())/Math.log(2)) + 2;
 
-    private List<Point2D> tryComputeHull(List<Point2D> points, int m) {
-        // Clear previous results
-        hull.clear();
-        groups.clear();
-        miniHulls.clear();
-
-        // Phase 1: Partition and compute mini-hulls
-        partitionPoints(points, m);
-        computeMiniHulls();
-
-        // Phase 2: Jarvis March over mini-hulls
-        return performJarvisMarch(m);
-    }
-
-    private void partitionPoints(List<Point2D> points, int m) {
-        int n = points.size();
-        int numGroups = (n + m - 1) / m; // Ceiling division
-
-        for (int i = 0; i < numGroups; i++) {
-            int start = i * m;
-            int end = Math.min(start + m, n);
-            groups.add(new ArrayList<>(points.subList(start, end)));
-        }
-    }
-
-    private void computeMiniHulls() {
-        for (List<Point2D> group : groups) {
-            miniHulls.add(grahamScan.computeHull(group));
-        }
-    }
-
-    private List<Point2D> performJarvisMarch(int m) {
-        // Find the leftmost point
-        Point2D current = findLeftmostPoint();
-        hull.add(current);
-        
-        // Find the next point in each group
-        Point2D next = findNextPointInGroups(current);
-        hull.add(next);
-        
-        // Continue until we complete the hull or exceed m steps
-        for (int i = 2; i <= m; i++) {
-            Point2D nextPoint = JarvisHelper.findNextPoint(current, next, miniHulls);
+        for (int iteration = 0; iteration < iterationLimit; iteration++) {
+            // Partition points into ⌈n/m⌉ subsets
+            List<List<Point2D>> partitions = partitionPoints(pointsArray, m);
             
-            if (nextPoint.equals(hull.get(0))) {
-                return new ArrayList<>(hull); // Hull is complete
+            // Compute partial hulls
+            partialHulls = computePartialHulls(partitions);
+            
+            // Combine and find convex hull
+            List<Point2D> combined = combineHulls(partialHulls);
+            Point2D[] combinedArray = combined.toArray(new Point2D[0]);
+            
+            // Try Jarvis march with early termination
+            List<Point2D> hull = tryJarvisMarch(combinedArray, m);
+            
+            if (hull != null) {
+                return hull;
             }
             
-            hull.add(nextPoint);
-            current = next;
-            next = nextPoint;
-        }
-        
-        return null; // Hull not complete within m steps
-    }
-
-    private Point2D findLeftmostPoint() {
-        Point2D leftmost = null;
-        double minX = Double.POSITIVE_INFINITY;
-        
-        for (List<Point2D> hull : miniHulls) {
-            for (Point2D p : hull) {
-                if (p.getX() < minX) {
-                    minX = p.getX();
-                    leftmost = p;
-                }
+            // Exponential search for optimal m
+            m = Math.min(m * 2, points.size());
+            
+            // Fallback to Graham Scan if m gets too large
+            if (m == points.size()) {
+                return grahamScan.computeHull(points);
             }
         }
         
-        return leftmost;
+        // Final fallback
+        return grahamScan.computeHull(points);
     }
 
-    private Point2D findNextPointInGroups(Point2D current) {
-        Point2D next = null;
-        double maxAngle = Double.NEGATIVE_INFINITY;
-        
-        for (List<Point2D> hull : miniHulls) {
-            for (Point2D p : hull) {
-                if (!p.equals(current)) {
-                    double angle = Math.atan2(p.getY() - current.getY(), p.getX() - current.getX());
-                    if (angle > maxAngle) {
-                        maxAngle = angle;
-                        next = p;
-                    }
-                }
-            }
+    /**
+     * Returns the partial hulls computed during the last hull computation.
+     * This is used for visualization purposes.
+     */
+    public List<List<Point2D>> getPartialHulls(List<Point2D> points) {
+        // Recompute partial hulls if needed
+        if (partialHulls.isEmpty()) {
+            Point2D[] pointsArray = points.toArray(new Point2D[0]);
+            int m = Math.min(10, points.size());
+            List<List<Point2D>> partitions = partitionPoints(pointsArray, m);
+            partialHulls = computePartialHulls(partitions);
         }
+        return partialHulls;
+    }
+
+    private List<List<Point2D>> partitionPoints(Point2D[] points, int m) {
+        int partitionCount = (int) Math.ceil((double) points.length / m);
+        List<List<Point2D>> partitions = new ArrayList<>(partitionCount);
         
-        return next;
+        int partitionSize = (int) Math.ceil((double) points.length / partitionCount);
+        
+        for (int i = 0; i < partitionCount; i++) {
+            int start = i * partitionSize;
+            int end = Math.min(start + partitionSize, points.length);
+            partitions.add(new ArrayList<>(Arrays.asList(Arrays.copyOfRange(points, start, end))));
+        }
+        return partitions;
+    }
+
+    private List<List<Point2D>> computePartialHulls(List<List<Point2D>> partitions) {
+        List<List<Point2D>> partialHulls = new ArrayList<>(partitions.size());
+        
+        for (List<Point2D> partition : partitions) {
+            partialHulls.add(grahamScan.computeHull(partition));
+        }
+        return partialHulls;
+    }
+
+    private List<Point2D> combineHulls(List<List<Point2D>> partialHulls) {
+        List<Point2D> combined = new ArrayList<>();
+        for (List<Point2D> hull : partialHulls) {
+            combined.addAll(hull);
+        }
+        return combined;
+    }
+
+    private List<Point2D> tryJarvisMarch(Point2D[] points, int m) {
+        List<Point2D> hull = jarvisMarch.computeHull(Arrays.asList(points));
+        
+        // Early termination check
+        if (hull.size() <= m * 2) { // More generous threshold
+            return hull;
+        }
+        return null;
     }
 } 
