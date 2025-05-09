@@ -3,6 +3,7 @@ package com.myapp.hull.ui;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import com.myapp.hull.Point2D;
 import com.myapp.hull.PointReader;
@@ -24,12 +25,16 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
+import javafx.scene.control.TextField;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -83,7 +88,7 @@ public class ConvexHullVisualizer extends Application {
     private int currentMergeStep = 0;
     private List<List<Point2D>> mergeSteps = new ArrayList<>();
     
-    private static final String LOGO_PATH = "/images/hull_logo.svg";
+    private static final String LOGO_PATH = "/images/logo.jpg";
     
     // Scale from canvas coordinates to point coordinates
     private double unscaleX(double x) {
@@ -122,6 +127,25 @@ public class ConvexHullVisualizer extends Application {
     @Override
     public void start(Stage primaryStage) {
         this.primaryStage = primaryStage;
+        
+        // Set application icon
+        try {
+            java.net.URL logoUrl = getClass().getResource(LOGO_PATH);
+            if (logoUrl != null) {
+                Image icon = new Image(logoUrl.toExternalForm());
+                primaryStage.getIcons().add(icon);
+            } else {
+                // If resource loading fails, try loading as a file
+                File logoFile = new File("src/main/resources" + LOGO_PATH);
+                if (logoFile.exists()) {
+                    Image icon = new Image(logoFile.toURI().toString());
+                    primaryStage.getIcons().add(icon);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Could not load application icon: " + e.getMessage());
+        }
+        
         BorderPane root = new BorderPane();
         root.setStyle("-fx-background-color: rgb(20, 20, 20);");
         
@@ -207,13 +231,29 @@ public class ConvexHullVisualizer extends Application {
         
         // Add logo
         try {
-            Image logoImage = new Image(getClass().getResourceAsStream(LOGO_PATH));
+            // First try loading as a resource
+            java.net.URL logoUrl = getClass().getResource(LOGO_PATH);
+            Image logoImage;
+            
+            if (logoUrl != null) {
+                logoImage = new Image(logoUrl.toExternalForm());
+            } else {
+                // If resource loading fails, try loading as a file
+                File logoFile = new File("src/main/resources" + LOGO_PATH);
+                if (!logoFile.exists()) {
+                    throw new IllegalStateException("Logo file not found: " + logoFile.getAbsolutePath());
+                }
+                logoImage = new Image(logoFile.toURI().toString());
+            }
+            
             ImageView logoView = new ImageView(logoImage);
-            logoView.setFitHeight(35); // Slightly smaller size
+            logoView.setFitHeight(40);
             logoView.setPreserveRatio(true);
             header.getChildren().add(logoView);
         } catch (Exception e) {
             System.err.println("Could not load logo: " + e.getMessage());
+            e.printStackTrace();
+            
             // Add a fallback text logo if image loading fails
             Label textLogo = new Label("CH");
             textLogo.setFont(Font.font("System", FontWeight.BOLD, 20));
@@ -493,18 +533,84 @@ public class ConvexHullVisualizer extends Application {
     }
     
     private void generateRandomPoints() {
-        int numPoints = 50;
-        points.clear();
-        hull.clear();
+        // Create a custom dialog for number input
+        Dialog<Integer> dialog = new Dialog<>();
+        dialog.setTitle("Generate Random Points");
+        dialog.setHeaderText("Enter the number of points to generate");
+        dialog.getDialogPane().setStyle("-fx-background-color: rgb(40, 40, 40);");
+
+        // Set the button types
+        ButtonType generateButtonType = new ButtonType("Generate", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(generateButtonType, ButtonType.CANCEL);
+
+        // Create the number input field
+        TextField numberInput = new TextField();
+        numberInput.setPromptText("Enter number of points");
+        numberInput.setStyle("-fx-background-color: rgb(60, 60, 60); -fx-text-fill: white;");
         
-        for (int i = 0; i < numPoints; i++) {
-            double x = Math.random() * 100;
-            double y = Math.random() * 100;
-            points.add(new Point2D(x, y));
-        }
+        // Add validation
+        numberInput.textProperty().addListener((observable, oldValue, newValue) -> {
+            if (!newValue.matches("\\d*")) {
+                numberInput.setText(newValue.replaceAll("[^\\d]", ""));
+            }
+        });
+
+        // Create the content
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(10));
+        content.setStyle("-fx-background-color: rgb(40, 40, 40);");
         
-        drawPoints();
-        updateStatus("Generated " + numPoints + " random points");
+        Label label = new Label("Number of points:");
+        label.setTextFill(Color.WHITE);
+        content.getChildren().addAll(label, numberInput);
+        
+        dialog.getDialogPane().setContent(content);
+
+        // Style the dialog buttons
+        dialog.getDialogPane().lookupButton(generateButtonType).setStyle(
+            "-fx-background-color: rgb(180, 20, 20); -fx-text-fill: white;"
+        );
+        dialog.getDialogPane().lookupButton(ButtonType.CANCEL).setStyle(
+            "-fx-background-color: rgb(60, 60, 60); -fx-text-fill: white;"
+        );
+
+        // Convert the result to a number when the generate button is clicked
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == generateButtonType) {
+                try {
+                    return Integer.parseInt(numberInput.getText());
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+            }
+            return null;
+        });
+
+        // Show the dialog and process the result
+        Optional<Integer> result = dialog.showAndWait();
+        result.ifPresent(numPoints -> {
+            if (numPoints <= 0) {
+                showError("Invalid Input", "Please enter a positive number of points.");
+                return;
+            }
+            
+            if (numPoints > 1000) {
+                showError("Too Many Points", "Please enter a number less than or equal to 1000.");
+                return;
+            }
+            
+            points.clear();
+            hull.clear();
+            
+            for (int i = 0; i < numPoints; i++) {
+                double x = Math.random() * 100;
+                double y = Math.random() * 100;
+                points.add(new Point2D(x, y));
+            }
+            
+            drawPoints();
+            updateStatus("Generated " + numPoints + " random points");
+        });
     }
     
     private void loadPointsFromFile(Stage stage) {
