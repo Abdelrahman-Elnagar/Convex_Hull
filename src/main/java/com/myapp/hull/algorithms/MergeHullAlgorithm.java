@@ -2,7 +2,6 @@ package com.myapp.hull.algorithms;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -26,11 +25,14 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
         Point2D[] pointsArray = uniquePointsSet.toArray(new Point2D[0]);
 
         // Handle base cases : null and 2 points or less
-        if (points == null || points.isEmpty() || pointsArray.length <= 2) {
+        if (points == null || points.isEmpty()){
+            return new ArrayList<>();
+        }
+        if(pointsArray.length <= 2) {
             computationSteps.add(new ArrayList<>(Arrays.asList(pointsArray)));
             return new ArrayList<>(Arrays.asList(pointsArray));
         }
- 
+
         // Check if all points are collinear
         if (areAllCollinear(pointsArray)) {
             Point2D[] extremePoints = findExtremePoints(pointsArray);
@@ -38,8 +40,10 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
             return new ArrayList<>(Arrays.asList(extremePoints));
         }
            
-        // Sort by x-coordinate
-        Arrays.sort(pointsArray, (a, b) -> Double.compare(a.getX(), b.getX()));
+        // Sort by x-coordinate and then by y-coordinate in case of ties
+        Arrays.sort(pointsArray, (a, b) -> Double.compare(a.getX(), b.getX()) != 0 ? 
+            Double.compare(a.getX(), b.getX()) : Double.compare(a.getY(), b.getY())
+        );
       
         // Record initial sorted points
         computationSteps.add(new ArrayList<>(Arrays.asList(pointsArray)));
@@ -47,7 +51,7 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
         // Apply divide-and-conquer algorithm
         List<Point2D> hull = divideAndConquerHull(pointsArray);
         
-        // Ensure the points are in the expected order (start with bottom-left point)
+        // Ensure the points are in the expected order (start with bottom-left point) for the animation
         arrangeHullStartingFromBottomLeft(hull);
         
         // Record final hull
@@ -137,10 +141,7 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
     
     
     private boolean isCollinear(Point2D a, Point2D b, Point2D c) {
-        // Check if three points lie on the same line
-        double cross = (b.getY() - a.getY()) * (c.getX() - b.getX()) - 
-                      (c.getY() - b.getY()) * (b.getX() - a.getX());
-        return Math.abs(cross) < 1e-10; // Using small epsilon for floating point comparison
+       return orientation(a, b, c) == 0;
     }
     
     private Point2D[] findExtremePoints(Point2D[] points) {
@@ -176,16 +177,6 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
         if (leftHull.isEmpty()) return rightHull;
         if (rightHull.isEmpty()) return leftHull;
         
-        // Handle special case where both hulls are lines
-        if (leftHull.size() == 2 && rightHull.size() == 2) {
-            Point2D[] allPoints = {leftHull.get(0), leftHull.get(1), 
-                                 rightHull.get(0), rightHull.get(1)};
-            if (areAllCollinear(allPoints)) {
-                Point2D[] extremePoints = findExtremePoints(allPoints);
-                return new ArrayList<>(Arrays.asList(extremePoints));
-            }
-        }
-        
         // Find the upper and lower tangent lines between the two hulls
         int[] upperTangent = findUpperTangent(leftHull, rightHull);
         int[] lowerTangent = findLowerTangent(leftHull, rightHull);
@@ -213,47 +204,9 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
             i = (i + 1) % rightHull.size();
         } while (i != (rightLower + 1) % rightHull.size());
         
-        // Remove any collinear points on the hull
-        removeCollinearPoints(mergedHull);
-        
         return mergedHull;
     }
-    
-    private void removeCollinearPoints(List<Point2D> hull) {
-        if (hull.size() <= 2) return;
-        
-        List<Point2D> result = new ArrayList<>();
-        int n = hull.size();
-        
-        for (int i = 0; i < n; i++) {
-            int prev = (i - 1 + n) % n;
-            int next = (i + 1) % n;
-            
-            Point2D p1 = hull.get(prev);
-            Point2D p2 = hull.get(i);
-            Point2D p3 = hull.get(next);
-            
-            if (!isCollinear(p1, p2, p3)) {
-                result.add(p2);
-            } else {
-                // Keep the middle point if it's collinear but is an extreme point
-                double dist1 = Math.sqrt(Math.pow(p3.getX() - p1.getX(), 2) + 
-                                       Math.pow(p3.getY() - p1.getY(), 2));
-                double dist2 = Math.sqrt(Math.pow(p2.getX() - p1.getX(), 2) + 
-                                       Math.pow(p2.getY() - p1.getY(), 2)) +
-                             Math.sqrt(Math.pow(p3.getX() - p2.getX(), 2) + 
-                                      Math.pow(p3.getY() - p2.getY(), 2));
-                
-                if (Math.abs(dist1 - dist2) > 1e-9) {
-                    result.add(p2);
-                }
-            }
-        }
-        
-        hull.clear();
-        hull.addAll(result);
-    }
-    
+      
     private int[] findUpperTangent(List<Point2D> leftHull, List<Point2D> rightHull) {
         int leftSize = leftHull.size();
         int rightSize = rightHull.size();
@@ -264,6 +217,7 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
             Point2D current = leftHull.get(i);
             Point2D rightmost = leftHull.get(leftIndex);
             if (current.getX() > rightmost.getX() || 
+                // If two points are equally to the right, take the one higher
                 (current.getX() == rightmost.getX() && current.getY() > rightmost.getY())) {
                 leftIndex = i;
             }
@@ -275,6 +229,7 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
             Point2D current = rightHull.get(i);
             Point2D leftmost = rightHull.get(rightIndex);
             if (current.getX() < leftmost.getX() || 
+                // If two points are equally to the left, take the one higher
                 (current.getX() == leftmost.getX() && current.getY() > leftmost.getY())) {
                 rightIndex = i;
             }
@@ -334,6 +289,7 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
             Point2D current = leftHull.get(i);
             Point2D rightmost = leftHull.get(leftIndex);
             if (current.getX() > rightmost.getX() || 
+                // If two points are equally to the right, take the one lower
                 (current.getX() == rightmost.getX() && current.getY() < rightmost.getY())) {
                 leftIndex = i;
             }
@@ -345,6 +301,7 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
             Point2D current = rightHull.get(i);
             Point2D leftmost = rightHull.get(rightIndex);
             if (current.getX() < leftmost.getX() || 
+                // If two points are equally to the left, take the one lower
                 (current.getX() == leftmost.getX() && current.getY() < leftmost.getY())) {
                 rightIndex = i;
             }
@@ -401,40 +358,6 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
                     (q.getX() - p.getX()) * (r.getY() - q.getY());
         if (Math.abs(val) < 1e-10) return 0;  // collinear
         return (val > 0) ? 1 : -1; // counterclockwise or clockwise
-    }
-    
-    private boolean isCounterClockwise(List<Point2D> points) {
-        if (points.size() < 3) return true;
-        
-        // Calculate the cross product
-        double crossProduct = 0;
-        for (int i = 0; i < points.size(); i++) {
-            Point2D current = points.get(i);
-            Point2D next = points.get((i + 1) % points.size());
-            crossProduct += (current.getX() * next.getY() - current.getY() * next.getX());
-        }
-        
-        return crossProduct > 0; // Positive cross product means counterclockwise
-    }
-    
-    private void arrangeCounterClockwise(List<Point2D> points) {
-        if (points.size() < 3) return;
-        
-        // Find the center point
-        double sumX = 0, sumY = 0;
-        for (Point2D p : points) {
-            sumX += p.getX();
-            sumY += p.getY();
-        }
-        final double centerX = sumX / points.size();
-        final double centerY = sumY / points.size();
-        
-        // Sort points counterclockwise
-        Collections.sort(points, (p1, p2) -> {
-            double angle1 = Math.atan2(p1.getY() - centerY, p1.getX() - centerX);
-            double angle2 = Math.atan2(p2.getY() - centerY, p2.getX() - centerX);
-            return Double.compare(angle1, angle2);
-        });
     }
     
     public List<List<Point2D>> getComputationSteps() {
