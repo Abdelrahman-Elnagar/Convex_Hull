@@ -54,20 +54,6 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
         return hull;
     }
     
-    private boolean areAllCollinear(Point2D[] points) {
-        if (points.length <= 2) return true;
-        
-        Point2D p1 = points[0];
-        Point2D p2 = points[1];
-        
-        for (int i = 2; i < points.length; i++) {
-            if (!isCollinear(p1, p2, points[i])) {
-                return false;
-            }
-        }
-        return true;
-    }
-    
     private void arrangeHullStartingFromBottomLeft(List<Point2D> hull) {
         if (hull.size() <= 2) return;
         
@@ -138,34 +124,6 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
        return orientation(a, b, c) == 0;
     }
     
-    private Point2D[] findExtremePoints(Point2D[] points) {
-        // For single point, return it as both extreme points
-        if (points.length == 1) {
-            return new Point2D[]{points[0], points[0]};
-        }
-        
-        // Find the two most distant points
-        double maxDistance = 0;
-        Point2D p1 = null, p2 = null;
-        
-        for (int i = 0; i < points.length; i++) {
-            for (int j = i + 1; j < points.length; j++) {
-                Point2D a = points[i];
-                Point2D b = points[j];
-                double distance = Math.sqrt(Math.pow(b.getX() - a.getX(), 2) + 
-                                         Math.pow(b.getY() - a.getY(), 2));
-                
-                if (distance > maxDistance) {
-                    maxDistance = distance;
-                    p1 = a;
-                    p2 = b;
-                }
-            }
-        }
-        
-        return new Point2D[]{p1, p2};
-    }
-    
     private List<Point2D> mergeHulls(List<Point2D> leftHull, List<Point2D> rightHull) {
         // If either hull is empty, return the other
         if (leftHull.isEmpty()) return rightHull;
@@ -178,7 +136,8 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
         // Build the merged hull
         List<Point2D> mergedHull = new ArrayList<>();
         
-        // Add points from left hull (clockwise from lower to upper tangent)
+        // Add points from left hull (clockwise from lower tanged to upper tangent
+        // and discard the rest of the points as they do not belong in the new hull)
         int leftLower = lowerTangent[0];
         int leftUpper = upperTangent[0];
     
@@ -189,7 +148,8 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
         }
         mergedHull.add(leftHull.get(leftUpper));
 
-        // Add points from right hull (clockwise from upper to lower tangent)
+        // Add points from right hull (clockwise from upper to lower tangent
+        // and discard the rest of the points as they do not belong in the new hull)
         int rightUpper = upperTangent[1];
         int rightLower = lowerTangent[1];
         i = rightUpper;
@@ -205,7 +165,6 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
         return mergedHull;
     }
       
-   
 private int[] findUpperTangent(List<Point2D> leftHull, List<Point2D> rightHull) {
         int leftSize = leftHull.size();
         int rightSize = rightHull.size();
@@ -246,14 +205,17 @@ private int[] findUpperTangent(List<Point2D> leftHull, List<Point2D> rightHull) 
             while (true) {
 
                 int nextRightIndex = (upperRightIndex + 1) % rightSize;
+                // Check if we have looped back to the starting point
                 if(nextRightIndex==rightIndex) {
                     break;
                 }
                 Point2D currentLeft = leftHull.get(upperLeftIndex);
                 Point2D currentRight = rightHull.get(upperRightIndex);
+                // Get the candidate next right point
                 Point2D nextRight = rightHull.get(nextRightIndex);
                 
                 int orientation = orientation(currentLeft, currentRight, nextRight);
+                
                 if (orientation <= 0) {
                     upperRightIndex = nextRightIndex;
                     done = false;
@@ -265,12 +227,14 @@ private int[] findUpperTangent(List<Point2D> leftHull, List<Point2D> rightHull) 
             // Move left hull index
             while (true) {
                 int nextLeftIndex = (upperLeftIndex - 1 + leftSize) % leftSize;
+                // Check if we have looped back to the starting point
                 if(nextLeftIndex==leftIndex) {
                     break;
                 }
-                Point2D nextLeft = leftHull.get(nextLeftIndex);
                 Point2D currentLeft = leftHull.get(upperLeftIndex);
                 Point2D currentRight = rightHull.get(upperRightIndex);
+                // Get the candidate next left point
+                Point2D nextLeft = leftHull.get(nextLeftIndex);
                 
                 int orientation = orientation(nextLeft, currentLeft, currentRight);
                 if (orientation <= 0) {
@@ -324,11 +288,13 @@ private int[] findUpperTangent(List<Point2D> leftHull, List<Point2D> rightHull) 
             // Move right hull index
             while (true) {
                 int nextRightIndex = (lowerRightIndex - 1 + rightSize) % rightSize;
+                // Check if we have looped back to the starting point
                 if(nextRightIndex==rightIndex) {
                     break;
                 }
                 Point2D currentLeft = leftHull.get(lowerLeftIndex);
                 Point2D currentRight = rightHull.get(lowerRightIndex);
+                // Get the candidate next right point
                 Point2D nextRight = rightHull.get(nextRightIndex);
                 
                 int orientation = orientation(currentLeft, currentRight, nextRight);
@@ -343,13 +309,15 @@ private int[] findUpperTangent(List<Point2D> leftHull, List<Point2D> rightHull) 
             // Move left hull index
             while (true) {
                 int nextLeftIndex = (lowerLeftIndex + 1) % leftSize;
+                // Check if we have looped back to the starting point
                 if(nextLeftIndex==leftIndex) {
                     break;
-                }
-                Point2D nextLeft = leftHull.get(nextLeftIndex);
+                }     
                 Point2D currentLeft = leftHull.get(lowerLeftIndex);
                 Point2D currentRight = rightHull.get(lowerRightIndex);
-                
+                // Get the candidate next left point
+                Point2D nextLeft = leftHull.get(nextLeftIndex);
+
                 int orientation = orientation(nextLeft, currentLeft, currentRight);
                 if (orientation >= 0) {
                     lowerLeftIndex = nextLeftIndex;
@@ -363,7 +331,6 @@ private int[] findUpperTangent(List<Point2D> leftHull, List<Point2D> rightHull) 
         return new int[]{lowerLeftIndex, lowerRightIndex};
     }
 
-    
     private int orientation(Point2D p, Point2D q, Point2D r) {
         // Returns positive value for counterclockwise orientation,
         // negative for clockwise orientation, and 0 for collinear points
@@ -407,8 +374,7 @@ private int[] findUpperTangent(List<Point2D> leftHull, List<Point2D> rightHull) 
         hull.clear();
         hull.addAll(result);
     }
-
-    
+ 
     public List<List<Point2D>> getComputationSteps() {
         return new ArrayList<>(computationSteps);
     }
