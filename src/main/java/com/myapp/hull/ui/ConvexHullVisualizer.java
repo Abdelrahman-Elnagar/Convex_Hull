@@ -321,7 +321,7 @@ public class ConvexHullVisualizer extends Application {
         );
         algorithmCombo.setValue("Graham Scan");
         algorithmCombo.setMaxWidth(Double.MAX_VALUE);
-        algorithmCombo.setStyle("-fx-background-color: rgb(40, 40, 40); -fx-text-fill: white;");
+        algorithmCombo.setStyle("-fx-background-color: rgb(240, 240, 240);");
         
         // Add algorithm description label
         Label algoDescription = new Label();
@@ -363,7 +363,7 @@ public class ConvexHullVisualizer extends Application {
         
         // Animation controls
         Label animLabel = createStyledLabel("Animation Speed:");
-        Slider speedSlider = createStyledSlider(50, 500, animationSpeed);
+        Slider speedSlider = createStyledSlider(50, 1100, animationSpeed);
         speedSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
             animationSpeed = newVal.doubleValue();
             if (animation != null && animation.getStatus() == Animation.Status.RUNNING) {
