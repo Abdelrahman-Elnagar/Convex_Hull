@@ -1,125 +1,308 @@
 package com.myapp.hull.algorithms;
 
+import com.myapp.hull.Point2D;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import com.myapp.hull.Maths;
 
-import com.myapp.hull.Point2D;
-
-/**
- * Implementation of Chan's Algorithm for computing the convex hull.
- * Time complexity: O(n log h) where h is the number of points in the hull.
- * This implementation uses a combination of Graham Scan and Jarvis March
- * with an optimal initial guess for m based on empirical studies.
- */
 public class ChansAlgorithm implements ConvexHullAlgorithm {
-    private final GrahamScan grahamScan = new GrahamScan();
-    private final JarvisMarch jarvisMarch = new JarvisMarch();
-    private List<List<Point2D>> partialHulls = new ArrayList<>();
+	
+	private static Point2D[] allPts, pts;
+	private static Point2D[][] groups, convGroups;
+	private static ArrayList<Point2D> currentConv = new ArrayList<>();
 
-    @Override
-    public List<Point2D> computeHull(List<Point2D> points) {
-        // Handle edge cases
-        if (points == null || points.size() < 3) {
-            return new ArrayList<>(points);
-        }
+	@Override
+	public List<Point2D> computeHull(List<Point2D> points) {
+		return Arrays.asList(computeHull(points.toArray(new Point2D[0]), 5));
+	}
 
-        // Convert List<Point2D> to Point2D[]
-        Point2D[] pointsArray = points.toArray(new Point2D[0]);
+    
 
-        // For small point sets, use Graham Scan directly
-        if (points.size() <= 6) {
-            return grahamScan.computeHull(points);
-        }
+	
 
-        // Optimal initial guess for m based on empirical studies
-        int m = Math.min(10, points.size());
-        int iterationLimit = (int) (Math.log(points.size())/Math.log(2)) + 2;
+	public static Point2D[] computeHull(Point2D[] points) {
+		return computeHull(points, 5);
+	}
 
-        for (int iteration = 0; iteration < iterationLimit; iteration++) {
-            // Partition points into ⌈n/m⌉ subsets
-            List<List<Point2D>> partitions = partitionPoints(pointsArray, m);
-            
-            // Compute partial hulls
-            partialHulls = computePartialHulls(partitions);
-            
-            // Combine and find convex hull
-            List<Point2D> combined = combineHulls(partialHulls);
-            Point2D[] combinedArray = combined.toArray(new Point2D[0]);
-            
-            // Try Jarvis march with early termination
-            List<Point2D> hull = tryJarvisMarch(combinedArray, m);
-            
-            if (hull != null) {
-                return hull;
-            }
-            
-            // Exponential search for optimal m
-            m = Math.min(m * 2, points.size());
-            
-            // Fallback to Graham Scan if m gets too large
-            if (m == points.size()) {
-                return grahamScan.computeHull(points);
-            }
-        }
-        
-        // Final fallback
-        return grahamScan.computeHull(points);
-    }
+	public static Point2D[] computeHull(Point2D[] points, int hStar) {
+		currentConv.clear();
+		
+		Point2D[] pts = ChansAlgorithm.allPts = ChansAlgorithm.pts = points;
+		Point2D[] conv;
+		
+		convGroups = null;
+		
+		for(;;) {
+			int n = pts.length;
+			int nGroups = (n + hStar - 1) / hStar; // round up
+			
+			// divide points into smaller groups for Graham's Scan
+			Point2D[][] Sj = groups = new Point2D[nGroups][];
+			for(int i=0, j=0; i<n;) {
+				// at most hStar points in Sj
+				Sj[j++] = Arrays.copyOfRange(pts, i, Math.min(i+hStar, n));
+				i += hStar;
+			}
+			
+			// compute convex hull for all subgroups
+			Point2D[][] convSj = convGroups = new Point2D[groups.length][];
+			for(int i=0; i<groups.length; i++) {
+				convSj[i] = GrahamsScan.computeHull(groups[i]);
+			}
+			
+			conv = JarvisMarch.computeHull(convSj, hStar);
+			if(conv != null || hStar >= n) {
+				break;
+			}
+			
+			// Superexponential search
+			hStar = Math.min(hStar*hStar, n);
+			
+			// Filter out points no longer needed
+			int neededSpace = 0;
+			for(Point2D pt: pts) {
+				if(pt.isStillNeeded()) neededSpace++;
+			}
+			
+			Point2D[] newPts = new Point2D[neededSpace];
+			for(Point2D pt: pts) {
+				if(pt.isStillNeeded()) {
+					newPts[--neededSpace] = pt;
+				}
+			}
+			
+			pts = ChansAlgorithm.pts = newPts;
+		}
+		
+		return conv;
+	}
 
-    /**
-     * Returns the partial hulls computed during the last hull computation.
-     * This is used for visualization purposes.
-     */
-    public List<List<Point2D>> getPartialHulls(List<Point2D> points) {
-        // Recompute partial hulls if needed
-        if (partialHulls.isEmpty()) {
-            Point2D[] pointsArray = points.toArray(new Point2D[0]);
-            int m = Math.min(10, points.size());
-            List<List<Point2D>> partitions = partitionPoints(pointsArray, m);
-            partialHulls = computePartialHulls(partitions);
-        }
-        return partialHulls;
-    }
+	public static Point2D[][] getPartialHulls(Point2D[] points) {
+		// Run computeHull to get the last computed group of hulls
+		computeHull(points);
+		// Return the last computed group of hulls
+		return convGroups;
+	}
 
-    private List<List<Point2D>> partitionPoints(Point2D[] points, int m) {
-        int partitionCount = (int) Math.ceil((double) points.length / m);
-        List<List<Point2D>> partitions = new ArrayList<>(partitionCount);
-        
-        int partitionSize = (int) Math.ceil((double) points.length / partitionCount);
-        
-        for (int i = 0; i < partitionCount; i++) {
-            int start = i * partitionSize;
-            int end = Math.min(start + partitionSize, points.length);
-            partitions.add(new ArrayList<>(Arrays.asList(Arrays.copyOfRange(points, start, end))));
-        }
-        return partitions;
-    }
+	public static Point2D[][] getPartialHulls(List<Point2D> points) {
+		return getPartialHulls(points.toArray(new Point2D[0]));
+	}
+}
 
-    private List<List<Point2D>> computePartialHulls(List<List<Point2D>> partitions) {
-        List<List<Point2D>> partialHulls = new ArrayList<>(partitions.size());
-        
-        for (List<Point2D> partition : partitions) {
-            partialHulls.add(grahamScan.computeHull(partition));
-        }
-        return partialHulls;
-    }
+class JarvisMarch {
+	
+	private static int circleAccess(int length, int index) {
+		return (index+length) % length;
+	}
+	
+	private static int jarvisBinarySearch(ArrayList<Point2D> pts, Point2D pi, Point2D displayBeingSpecial) {
+		int length = pts.size();
+		int max = length-1, min = -max;
+		
+		int besti = 0, altMax, altMin;
+		Point2D best = pts.get(0), maybe;
+		while(max-min > 0) {
+			maybe = pts.get(circleAccess(length, besti-1));
+			if(besti > min && Maths.isLeftOf(pi, maybe, best)) {
+				altMax = max;
+				max = besti-1;
+				besti = (min+max)>>1;
+				best = pts.get(circleAccess(length, besti));
+				
+				if(Maths.isLeftOf(pi, maybe, best)) {
+					besti = max;
+					best = maybe;
+					max = altMax;
+				}
+			} else {
+				maybe = pts.get(circleAccess(length, besti+1));
+				if(besti < max && Maths.isLeftOf(pi, maybe, best)) {
+					altMin = min;
+					min = besti+1;
+					besti = (min+max)>>1;
+					best = pts.get(circleAccess(length, besti));
+					
+					if(Maths.isLeftOf(pi, maybe, best)) {
+						besti = min;
+						best = maybe;
+						min = altMin;
+					}
+				} else {
+					return circleAccess(length, besti);
+				}
+			}
+		}
+		return circleAccess(length, besti);
+	}
 
-    private List<Point2D> combineHulls(List<List<Point2D>> partialHulls) {
-        List<Point2D> combined = new ArrayList<>();
-        for (List<Point2D> hull : partialHulls) {
-            combined.addAll(hull);
-        }
-        return combined;
-    }
+	public static Point2D[] computeHull(Point2D[][] hulls, int hStar) {
+		// only one subhull
+		if(hulls.length == 1) return hulls[0];
+		
+		ArrayList<ArrayList<Point2D>> S2 = new ArrayList<>();
+		
+		// find lowest, leftmost point
+		Point2D minPt = hulls[0][0];
+		for(int i=0; i<hulls.length; i++) {
+			Point2D pt = hulls[i][0];
+			if(pt.getY() < minPt.getY() || (pt.getY() == minPt.getY() && pt.getX() < minPt.getX())) {
+				minPt = pt;
+			}
+		}
+		
+		int k = 0;
+		for(Point2D[] group: hulls) {
+			if(group.length > 0 && (group.length > 1 || group[0] != minPt)) {
+				ArrayList<Point2D> g2 = new ArrayList<>(group.length);
+				S2.add(g2);
+				
+				for(Point2D pt: group) {
+					if(pt != minPt) {
+						g2.add(pt);
+						pt.setAngle(Math.atan2(pt.getX()-minPt.getX(), pt.getY()-minPt.getY()));
+						pt.setGroup(k);
+					}
+				}
+				
+				Point2D first = g2.get(0);
+				if(group.length > 1 && first.getX() < minPt.getX()) {
+					g2.remove(0);
+					g2.add(first);
+				}
+				
+				k++;
+			}
+		}
+		
+		ArrayList<Point2D> conv = new ArrayList<>(hStar);
+		conv.add(minPt);
+		
+		do {
+			Point2D pt1 = conv.get(conv.size()-1);
+			Point2D nextCandidate = conv.size() == 1 ? null : minPt;
+			
+			ArrayList<Point2D> bpts = null;
+			int bptsi = 0;
+			
+			// find best candidate in subhulls
+			for(ArrayList<Point2D> pts : S2) {
+				if(pts.size() > 0) {
+					int pti = jarvisBinarySearch(pts, pt1, nextCandidate == null || nextCandidate == minPt ? pt1 : nextCandidate);
+					Point2D pt = pts.get(pti);
+					
+					if(nextCandidate == null || Maths.isLeftOf(pt1, pt, nextCandidate)) {
+						nextCandidate = pt;
+						bpts = pts;
+						bptsi = pti;
+					}
+				}
+			}
+			
+			// check for completion
+			if(nextCandidate == null || nextCandidate == minPt) {
+				return conv.toArray(new Point2D[0]);
+			}
+			
+			// add point to hull
+			bpts.remove(bptsi);
+			conv.add(nextCandidate);
+			
+		} while(conv.size() <= hStar);
+		
+		return null;
+	}
+}
 
-    private List<Point2D> tryJarvisMarch(Point2D[] points, int m) {
-        List<Point2D> hull = jarvisMarch.computeHull(Arrays.asList(points));
-        
-        // Early termination check
-        if (hull.size() <= m * 2) { // More generous threshold
-            return hull;
-        }
-        return null;
-    }
-} 
+class GrahamsScan {
+	
+	public static Point2D[] computeHull(Point2D[] pts) {
+		if(pts.length < 4) {
+			for(Point2D pt : pts) {
+				pt.setStillNeeded(true);
+			}
+			return pts;
+		}
+		
+		ArrayList<Point2D> conv = new ArrayList<>(pts.length);
+		
+		// find point with lowest y-coordinate
+		// if multiple, take leftmost
+		double minY = pts[0].getY();
+		Point2D minPt = pts[0];
+		int minIndex = 0;
+		for(int i=1; i<pts.length; i++) {
+			Point2D pt = pts[i];
+			if(pt.getY() < minY) {
+				minPt = pt;
+				minY = pt.getY();
+				minIndex = i;
+			} else if(pt.getY() == minY && pt.getX() < minPt.getX()) {
+				minPt = pt;
+				minIndex = i;
+			}
+		}
+		
+		// remove minPt
+		ArrayList<Point2D> andere = new ArrayList<>(pts.length-1);
+		for(int i=0; i<pts.length; i++) {
+			if(i != minIndex) {
+				andere.add(pts[i]);
+			}
+		}
+		
+		// calculate angle to minPt and x-axis
+		for(Point2D pt : andere) {
+			pt.setAngle(Math.atan2(pt.getY()-minPt.getY(), pt.getX()-minPt.getX()));
+			pt.setStillNeeded(false);
+		}
+		
+		// sort points by angle
+		Collections.sort(andere);
+		
+		// remove collinear points
+		for(int i=1, l=andere.size(); i<l; i++) {
+			Point2D a = andere.get(i-1);
+			Point2D b = andere.get(i);
+			if(a.getAngle() == b.getAngle()) {
+				// remove point closer to p0
+				if(Maths.squaredDistance(a.getX()-minPt.getX(), a.getY()-minPt.getY()) > 
+				   Maths.squaredDistance(b.getX()-minPt.getX(), b.getY()-minPt.getY())) {
+					// keep a
+					andere.remove(i);
+				} else {
+					// keep b
+					andere.remove(i-1);
+				}
+				i--;
+			}
+		}
+		
+		// stack of hull points
+		conv.add(minPt);
+		conv.add(andere.get(0));
+		
+		for(int i=1, l=andere.size(); i<l;) {
+			int stackLength = conv.size();
+			Point2D pt1 = conv.get(stackLength - 1);
+			Point2D pt2 = conv.get(stackLength - 2);
+			Point2D compare = andere.get(i);
+
+			if (stackLength == 2 || Maths.isLeftOf(pt2, pt1, compare)) {
+				conv.add(compare);
+				i++;
+			} else {
+				conv.remove(stackLength - 1);
+			}
+		}
+		
+		
+		Point2D[] ret = conv.toArray(new Point2D[0]);
+		for(Point2D pt : ret) {
+			pt.setStillNeeded(true);
+		}
+		
+		return ret;
+	}
+}

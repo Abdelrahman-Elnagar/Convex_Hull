@@ -805,7 +805,7 @@ public class ConvexHullVisualizer extends Application {
             switch (currentChanStep) {
                 case CHAN_STEP_GRAHAM:
                     // Draw partial hulls from Graham Scan
-                    drawPartialHulls();
+//                    drawPartialHulls();
                     if (currentEdge[0] >= partialHulls.size()) {
                         currentChanStep = CHAN_STEP_JARVIS;
                         currentEdge[0] = 0;

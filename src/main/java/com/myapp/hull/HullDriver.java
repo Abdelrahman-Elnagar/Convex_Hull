@@ -26,6 +26,10 @@ public class HullDriver {
     }
 
     public static void main(String[] args) {
+        args = new String[] {
+            "--algorithm=graham",
+            "--input=tt.txt"
+        };
         if (args.length != 2) {
             printUsage();
             System.exit(1);
