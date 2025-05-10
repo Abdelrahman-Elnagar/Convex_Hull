@@ -18,43 +18,29 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
     
     @Override
     public List<Point2D> computeHull(List<Point2D> points) {
-        // Clear previous computation steps
+        // Clear previous computation steps for fresh computation (for animation)
         computationSteps.clear();
-        
-        // Handle base cases
-        if (points == null || points.isEmpty()) {
-            return new ArrayList<>();
-        }
-        
-        // Remove duplicate points
+
+        // Remove duplicate points 
         Set<Point2D> uniquePointsSet = new LinkedHashSet<>(points);
         Point2D[] pointsArray = uniquePointsSet.toArray(new Point2D[0]);
-        
-        // Special case for single point
-        if (pointsArray.length == 1) {
+
+        // Handle base cases : null and 2 points or less
+        if (points == null || points.isEmpty() || pointsArray.length <= 2) {
             computationSteps.add(new ArrayList<>(Arrays.asList(pointsArray)));
             return new ArrayList<>(Arrays.asList(pointsArray));
         }
-        
+ 
         // Check if all points are collinear
         if (areAllCollinear(pointsArray)) {
             Point2D[] extremePoints = findExtremePoints(pointsArray);
             computationSteps.add(new ArrayList<>(Arrays.asList(extremePoints)));
             return new ArrayList<>(Arrays.asList(extremePoints));
         }
-        
-        if (pointsArray.length <= 3) {
-            List<Point2D> result = handleSmallCases(pointsArray);
-            computationSteps.add(new ArrayList<>(result));
-            return result;
-        }
-        
+           
         // Sort by x-coordinate
-        Arrays.sort(pointsArray, (a, b) -> {
-            int xCompare = Double.compare(a.getX(), b.getX());
-            return xCompare != 0 ? xCompare : Double.compare(a.getY(), b.getY());
-        });
-        
+        Arrays.sort(pointsArray, (a, b) -> Double.compare(a.getX(), b.getX()));
+      
         // Record initial sorted points
         computationSteps.add(new ArrayList<>(Arrays.asList(pointsArray)));
         
@@ -111,11 +97,10 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
     }
     
     private List<Point2D> divideAndConquerHull(Point2D[] points) {
-        // Base case
-        if (points.length <= 3) {
-            List<Point2D> result = handleSmallCases(points);
-            computationSteps.add(new ArrayList<>(result));
-            return result;
+        // Handle base cases : null and 2 points or less
+        if (points.length <= 2) {
+            computationSteps.add(new ArrayList<>(Arrays.asList(points)));
+            return new ArrayList<>(Arrays.asList(points));
         }
         
         // Step 1: Divide the set into two halves
@@ -150,43 +135,6 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
         return merged;
     }
     
-    private List<Point2D> handleSmallCases(Point2D[] points) {
-        if (points.length <= 1) {
-            return new ArrayList<>(Arrays.asList(points));
-        }
-        
-        if (points.length == 2) {
-            return new ArrayList<>(Arrays.asList(points));
-        }
-        
-        // Check if all points are collinear
-        boolean allCollinear = true;
-        if (points.length >= 3) {
-            Point2D p1 = points[0];
-            Point2D p2 = points[1];
-            
-            for (int i = 2; i < points.length; i++) {
-                if (!isCollinear(p1, p2, points[i])) {
-                    allCollinear = false;
-                break;
-                }
-            }
-        }
-        
-        if (allCollinear) {
-            // Find the two extreme points for collinear sets
-            Point2D[] extremePoints = findExtremePoints(points);
-            return new ArrayList<>(Arrays.asList(extremePoints));
-        } else if (points.length == 3) {
-            // All three points form a triangle (convex hull)
-            List<Point2D> hull = new ArrayList<>(Arrays.asList(points));
-            // Ensure counterclockwise order
-            arrangeCounterClockwise(hull);
-            return hull;
-        }
-        
-        return new ArrayList<>();
-    }
     
     private boolean isCollinear(Point2D a, Point2D b, Point2D c) {
         // Check if three points lie on the same line
