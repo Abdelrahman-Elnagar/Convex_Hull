@@ -181,7 +181,7 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
         // Add points from left hull (clockwise from lower to upper tangent)
         int leftLower = lowerTangent[0];
         int leftUpper = upperTangent[0];
-     
+    
        int i = leftLower;
         while (i != leftUpper) {
             mergedHull.add(leftHull.get(i));
@@ -205,7 +205,8 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
         return mergedHull;
     }
       
-    private int[] findUpperTangent(List<Point2D> leftHull, List<Point2D> rightHull) {
+   
+private int[] findUpperTangent(List<Point2D> leftHull, List<Point2D> rightHull) {
         int leftSize = leftHull.size();
         int rightSize = rightHull.size();
         
@@ -236,20 +237,24 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
         // Initialize upper tangent indices
         int upperLeftIndex = leftIndex;
         int upperRightIndex = rightIndex;
-        
+
         boolean done = false;
         while (!done) {
             done = true;
             
             // Move right hull index
             while (true) {
+
                 int nextRightIndex = (upperRightIndex + 1) % rightSize;
+                if(nextRightIndex==rightIndex) {
+                    break;
+                }
                 Point2D currentLeft = leftHull.get(upperLeftIndex);
                 Point2D currentRight = rightHull.get(upperRightIndex);
                 Point2D nextRight = rightHull.get(nextRightIndex);
                 
                 int orientation = orientation(currentLeft, currentRight, nextRight);
-                if (orientation < 0) {
+                if (orientation <= 0) {
                     upperRightIndex = nextRightIndex;
                     done = false;
                 } else {
@@ -260,12 +265,15 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
             // Move left hull index
             while (true) {
                 int nextLeftIndex = (upperLeftIndex - 1 + leftSize) % leftSize;
+                if(nextLeftIndex==leftIndex) {
+                    break;
+                }
                 Point2D nextLeft = leftHull.get(nextLeftIndex);
                 Point2D currentLeft = leftHull.get(upperLeftIndex);
                 Point2D currentRight = rightHull.get(upperRightIndex);
                 
                 int orientation = orientation(nextLeft, currentLeft, currentRight);
-                if (orientation < 0) {
+                if (orientation <= 0) {
                     upperLeftIndex = nextLeftIndex;
                 done = false;
                 } else {
@@ -316,28 +324,34 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
             // Move right hull index
             while (true) {
                 int nextRightIndex = (lowerRightIndex - 1 + rightSize) % rightSize;
+                if(nextRightIndex==rightIndex) {
+                    break;
+                }
                 Point2D currentLeft = leftHull.get(lowerLeftIndex);
                 Point2D currentRight = rightHull.get(lowerRightIndex);
                 Point2D nextRight = rightHull.get(nextRightIndex);
                 
                 int orientation = orientation(currentLeft, currentRight, nextRight);
-                if (orientation > 0) {
+                if (orientation >= 0) {
                     lowerRightIndex = nextRightIndex;
                     done = false;
                 } else {
                     break;
                 }
             }
-            
+
             // Move left hull index
             while (true) {
                 int nextLeftIndex = (lowerLeftIndex + 1) % leftSize;
+                if(nextLeftIndex==leftIndex) {
+                    break;
+                }
                 Point2D nextLeft = leftHull.get(nextLeftIndex);
                 Point2D currentLeft = leftHull.get(lowerLeftIndex);
                 Point2D currentRight = rightHull.get(lowerRightIndex);
                 
                 int orientation = orientation(nextLeft, currentLeft, currentRight);
-                if (orientation > 0) {
+                if (orientation >= 0) {
                     lowerLeftIndex = nextLeftIndex;
                     done = false;
                 } else {
@@ -348,6 +362,7 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
         
         return new int[]{lowerLeftIndex, lowerRightIndex};
     }
+
     
     private int orientation(Point2D p, Point2D q, Point2D r) {
         // Returns positive value for counterclockwise orientation,
