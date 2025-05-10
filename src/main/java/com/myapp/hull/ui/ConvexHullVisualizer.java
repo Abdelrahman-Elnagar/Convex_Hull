@@ -3,6 +3,7 @@ package com.myapp.hull.ui;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import com.myapp.hull.Point2D;
 import com.myapp.hull.PointReader;
@@ -24,13 +25,19 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
+import javafx.scene.control.TextField;
 import javafx.scene.effect.DropShadow;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -45,9 +52,9 @@ import javafx.util.Duration;
 
 public class ConvexHullVisualizer extends Application {
     // Canvas dimensions and scaling factors
-    private static final double CANVAS_WIDTH = 1200;
-    private static final double CANVAS_HEIGHT = 800;
-    private static final double PADDING = 50;
+    private static final double CANVAS_WIDTH = 800;
+    private static final double CANVAS_HEIGHT = 600;
+    private static final double PADDING = 40;
     
     // UI Colors
     private static final Color BACKGROUND_COLOR = Color.rgb(20, 20, 20);
@@ -75,6 +82,13 @@ public class ConvexHullVisualizer extends Application {
     private static final int CHAN_STEP_GRAHAM = 0;
     private static final int CHAN_STEP_JARVIS = 1;
     private static final int CHAN_STEP_FINAL = 2;
+    private static final int MERGE_STEP_SPLIT = 0;
+    private static final int MERGE_STEP_SUBHULLS = 1;
+    private static final int MERGE_STEP_MERGE = 2;
+    private int currentMergeStep = 0;
+    private List<List<Point2D>> mergeSteps = new ArrayList<>();
+    
+    private static final String LOGO_PATH = "/images/logo.jpg";
     
     // Scale from canvas coordinates to point coordinates
     private double unscaleX(double x) {
@@ -113,10 +127,29 @@ public class ConvexHullVisualizer extends Application {
     @Override
     public void start(Stage primaryStage) {
         this.primaryStage = primaryStage;
+        
+        // Set application icon
+        try {
+            java.net.URL logoUrl = getClass().getResource(LOGO_PATH);
+            if (logoUrl != null) {
+                Image icon = new Image(logoUrl.toExternalForm());
+                primaryStage.getIcons().add(icon);
+            } else {
+                // If resource loading fails, try loading as a file
+                File logoFile = new File("src/main/resources" + LOGO_PATH);
+                if (logoFile.exists()) {
+                    Image icon = new Image(logoFile.toURI().toString());
+                    primaryStage.getIcons().add(icon);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Could not load application icon: " + e.getMessage());
+        }
+        
         BorderPane root = new BorderPane();
         root.setStyle("-fx-background-color: rgb(20, 20, 20);");
         
-        // Create header
+        // Create header with logo
         HBox header = createHeader();
         root.setTop(header);
         
@@ -126,7 +159,7 @@ public class ConvexHullVisualizer extends Application {
         
         // Create canvas area with shadow effect
         VBox canvasContainer = new VBox();
-        canvasContainer.setPadding(new Insets(20));
+        canvasContainer.setPadding(new Insets(15));
         canvasContainer.setAlignment(Pos.CENTER);
         canvasContainer.setStyle("-fx-background-color: rgb(30, 30, 30);");
         
@@ -136,7 +169,7 @@ public class ConvexHullVisualizer extends Application {
         // Add drop shadow to canvas
         DropShadow dropShadow = new DropShadow();
         dropShadow.setColor(Color.rgb(0, 0, 0, 0.5));
-        dropShadow.setRadius(10);
+        dropShadow.setRadius(8);
         canvas.setEffect(dropShadow);
         
         canvasContainer.getChildren().add(canvas);
@@ -173,13 +206,14 @@ public class ConvexHullVisualizer extends Application {
         // Initial canvas setup
         clearCanvas();
         
-        Scene scene = new Scene(root, 1600, 900);
+        Scene scene = new Scene(root, 1200, 800);
         
         // Apply CSS styles directly to the scene - no external CSS file
         applyStyles(scene);
         
         primaryStage.setTitle("Premium Convex Hull Visualizer");
         primaryStage.setScene(scene);
+        primaryStage.setResizable(false); // Make window size fixed
         primaryStage.show();
     }
     
@@ -190,13 +224,45 @@ public class ConvexHullVisualizer extends Application {
     }
     
     private HBox createHeader() {
-        HBox header = new HBox();
-        header.setPadding(new Insets(15, 20, 15, 20));
+        HBox header = new HBox(10);
+        header.setPadding(new Insets(10, 15, 10, 15));
         header.setAlignment(Pos.CENTER_LEFT);
         header.setStyle("-fx-background-color: rgb(30, 30, 30);");
         
+        // Add logo
+        try {
+            // First try loading as a resource
+            java.net.URL logoUrl = getClass().getResource(LOGO_PATH);
+            Image logoImage;
+            
+            if (logoUrl != null) {
+                logoImage = new Image(logoUrl.toExternalForm());
+            } else {
+                // If resource loading fails, try loading as a file
+                File logoFile = new File("src/main/resources" + LOGO_PATH);
+                if (!logoFile.exists()) {
+                    throw new IllegalStateException("Logo file not found: " + logoFile.getAbsolutePath());
+                }
+                logoImage = new Image(logoFile.toURI().toString());
+            }
+            
+            ImageView logoView = new ImageView(logoImage);
+            logoView.setFitHeight(40);
+            logoView.setPreserveRatio(true);
+            header.getChildren().add(logoView);
+        } catch (Exception e) {
+            System.err.println("Could not load logo: " + e.getMessage());
+            e.printStackTrace();
+            
+            // Add a fallback text logo if image loading fails
+            Label textLogo = new Label("CH");
+            textLogo.setFont(Font.font("System", FontWeight.BOLD, 20));
+            textLogo.setTextFill(PRIMARY_COLOR);
+            header.getChildren().add(textLogo);
+        }
+        
         Label title = new Label("PREMIUM CONVEX HULL VISUALIZER");
-        title.setFont(Font.font("System", FontWeight.BOLD, 18));
+        title.setFont(Font.font("System", FontWeight.BOLD, 16));
         title.setTextFill(TEXT_COLOR);
         
         Region spacer = new Region();
@@ -211,14 +277,14 @@ public class ConvexHullVisualizer extends Application {
     }
     
     private VBox createControlPanel() {
-        VBox panel = new VBox(15);
-        panel.setPadding(new Insets(20));
-        panel.setMinWidth(300);
-        panel.setMaxWidth(300);
+        VBox panel = new VBox(10); // Reduced spacing
+        panel.setPadding(new Insets(15)); // Reduced padding
+        panel.setMinWidth(250); // Reduced width
+        panel.setMaxWidth(250);
         panel.setStyle("-fx-background-color: rgb(30, 30, 30);");
         
         Label panelTitle = new Label("CONTROLS");
-        panelTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
+        panelTitle.setFont(Font.font("System", FontWeight.BOLD, 14));
         panelTitle.setTextFill(TEXT_COLOR);
         
         // Add instructions section
@@ -227,19 +293,19 @@ public class ConvexHullVisualizer extends Application {
         instructionsBox.setStyle("-fx-background-color: rgb(40, 40, 40); -fx-background-radius: 5;");
         
         Label instructionsTitle = new Label("Instructions");
-        instructionsTitle.setFont(Font.font("System", FontWeight.BOLD, 14));
+        instructionsTitle.setFont(Font.font("System", FontWeight.BOLD, 12));
         instructionsTitle.setTextFill(TEXT_COLOR);
         
         Label clickInstruction = new Label("• Click on the canvas to add points");
-        clickInstruction.setFont(Font.font("System", 12));
+        clickInstruction.setFont(Font.font("System", 10));
         clickInstruction.setTextFill(TEXT_COLOR);
         
         Label dragInstruction = new Label("• Drag points to move them");
-        dragInstruction.setFont(Font.font("System", 12));
+        dragInstruction.setFont(Font.font("System", 10));
         dragInstruction.setTextFill(TEXT_COLOR);
         
         Label algorithmInstruction = new Label("• Select an algorithm and click 'Compute Hull'");
-        algorithmInstruction.setFont(Font.font("System", 12));
+        algorithmInstruction.setFont(Font.font("System", 10));
         algorithmInstruction.setTextFill(TEXT_COLOR);
         
         instructionsBox.getChildren().addAll(instructionsTitle, clickInstruction, dragInstruction, algorithmInstruction);
@@ -255,13 +321,13 @@ public class ConvexHullVisualizer extends Application {
         );
         algorithmCombo.setValue("Graham Scan");
         algorithmCombo.setMaxWidth(Double.MAX_VALUE);
-        algorithmCombo.setStyle("-fx-background-color: rgb(40, 40, 40); -fx-text-fill: white;");
+        algorithmCombo.setStyle("-fx-background-color: rgb(240, 240, 240);");
         
         // Add algorithm description label
         Label algoDescription = new Label();
         algoDescription.setWrapText(true);
-        algoDescription.setMaxWidth(280);
-        algoDescription.setFont(Font.font("System", 12));
+        algoDescription.setMaxWidth(200);
+        algoDescription.setFont(Font.font("System", 10));
         algoDescription.setTextFill(TEXT_COLOR);
         algoDescription.setStyle("-fx-padding: 5 0 10 0;");
         
@@ -297,7 +363,7 @@ public class ConvexHullVisualizer extends Application {
         
         // Animation controls
         Label animLabel = createStyledLabel("Animation Speed:");
-        Slider speedSlider = createStyledSlider(50, 500, animationSpeed);
+        Slider speedSlider = createStyledSlider(50, 1100, animationSpeed);
         speedSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
             animationSpeed = newVal.doubleValue();
             if (animation != null && animation.getStatus() == Animation.Status.RUNNING) {
@@ -379,7 +445,7 @@ public class ConvexHullVisualizer extends Application {
         // Add info section at bottom
         Label infoLabel = new Label("Click on the canvas to add points");
         infoLabel.setTextFill(Color.rgb(180, 180, 180));
-        infoLabel.setFont(Font.font("System", 12));
+        infoLabel.setFont(Font.font("System", 10));
         panel.getChildren().add(infoLabel);
         
         return panel;
@@ -387,11 +453,12 @@ public class ConvexHullVisualizer extends Application {
     
     private HBox createStatusBar() {
         HBox statusBar = new HBox();
-        statusBar.setPadding(new Insets(5, 10, 5, 10));
+        statusBar.setPadding(new Insets(4, 8, 4, 8)); // Reduced padding
         statusBar.setStyle("-fx-background-color: rgb(40, 40, 40);");
         
         statusLabel = new Label("Ready");
         statusLabel.setTextFill(Color.rgb(200, 200, 200));
+        statusLabel.setFont(Font.font("System", 11)); // Reduced font size
         
         statusBar.getChildren().add(statusLabel);
         
@@ -405,7 +472,7 @@ public class ConvexHullVisualizer extends Application {
     private Label createStyledLabel(String text) {
         Label label = new Label(text);
         label.setTextFill(TEXT_COLOR);
-        label.setFont(Font.font("System", 12));
+        label.setFont(Font.font("System", 10));
         return label;
     }
     
@@ -466,18 +533,84 @@ public class ConvexHullVisualizer extends Application {
     }
     
     private void generateRandomPoints() {
-        int numPoints = 50;
-        points.clear();
-        hull.clear();
+        // Create a custom dialog for number input
+        Dialog<Integer> dialog = new Dialog<>();
+        dialog.setTitle("Generate Random Points");
+        dialog.setHeaderText("Enter the number of points to generate");
+        dialog.getDialogPane().setStyle("-fx-background-color: rgb(40, 40, 40);");
+
+        // Set the button types
+        ButtonType generateButtonType = new ButtonType("Generate", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(generateButtonType, ButtonType.CANCEL);
+
+        // Create the number input field
+        TextField numberInput = new TextField();
+        numberInput.setPromptText("Enter number of points");
+        numberInput.setStyle("-fx-background-color: rgb(60, 60, 60); -fx-text-fill: white;");
         
-        for (int i = 0; i < numPoints; i++) {
-            double x = Math.random() * 100;
-            double y = Math.random() * 100;
-            points.add(new Point2D(x, y));
-        }
+        // Add validation
+        numberInput.textProperty().addListener((observable, oldValue, newValue) -> {
+            if (!newValue.matches("\\d*")) {
+                numberInput.setText(newValue.replaceAll("[^\\d]", ""));
+            }
+        });
+
+        // Create the content
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(10));
+        content.setStyle("-fx-background-color: rgb(40, 40, 40);");
         
-        drawPoints();
-        updateStatus("Generated " + numPoints + " random points");
+        Label label = new Label("Number of points:");
+        label.setTextFill(Color.WHITE);
+        content.getChildren().addAll(label, numberInput);
+        
+        dialog.getDialogPane().setContent(content);
+
+        // Style the dialog buttons
+        dialog.getDialogPane().lookupButton(generateButtonType).setStyle(
+            "-fx-background-color: rgb(180, 20, 20); -fx-text-fill: white;"
+        );
+        dialog.getDialogPane().lookupButton(ButtonType.CANCEL).setStyle(
+            "-fx-background-color: rgb(60, 60, 60); -fx-text-fill: white;"
+        );
+
+        // Convert the result to a number when the generate button is clicked
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == generateButtonType) {
+                try {
+                    return Integer.parseInt(numberInput.getText());
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+            }
+            return null;
+        });
+
+        // Show the dialog and process the result
+        Optional<Integer> result = dialog.showAndWait();
+        result.ifPresent(numPoints -> {
+            if (numPoints <= 0) {
+                showError("Invalid Input", "Please enter a positive number of points.");
+                return;
+            }
+            
+            if (numPoints > 1000) {
+                showError("Too Many Points", "Please enter a number less than or equal to 1000.");
+                return;
+            }
+            
+            points.clear();
+            hull.clear();
+            
+            for (int i = 0; i < numPoints; i++) {
+                double x = Math.random() * 100;
+                double y = Math.random() * 100;
+                points.add(new Point2D(x, y));
+            }
+            
+            drawPoints();
+            updateStatus("Generated " + numPoints + " random points");
+        });
     }
     
     private void loadPointsFromFile(Stage stage) {
@@ -537,9 +670,13 @@ public class ConvexHullVisualizer extends Application {
         try {
             long startTime = System.currentTimeMillis();
             
-            // Check if we're using Chan's Algorithm
-            isChanAlgorithm = currentAlgorithm instanceof ChansAlgorithm;
-            if (isChanAlgorithm) {
+            // Check if we're using Merge Hull Algorithm
+            if (currentAlgorithm instanceof MergeHullAlgorithm) {
+                MergeHullAlgorithm mergeAlgo = (MergeHullAlgorithm) currentAlgorithm;
+                hull = mergeAlgo.computeHull(points);
+                mergeSteps = mergeAlgo.getComputationSteps();
+                currentMergeStep = 0;
+            } else if (currentAlgorithm instanceof ChansAlgorithm) {
                 currentChanStep = CHAN_STEP_GRAHAM;
                 partialHulls.clear();
                 
@@ -557,7 +694,9 @@ public class ConvexHullVisualizer extends Application {
             long endTime = System.currentTimeMillis();
             
             if (animateHull) {
-                if (isChanAlgorithm) {
+                if (currentAlgorithm instanceof MergeHullAlgorithm) {
+                    animateMergeHull();
+                } else if (currentAlgorithm instanceof ChansAlgorithm) {
                     animateChanAlgorithm();
                 } else {
                     animateHullConstruction();
@@ -796,6 +935,115 @@ public class ConvexHullVisualizer extends Application {
                    (pointRadius + 2) * 2, (pointRadius + 2) * 2);
     }
     
+    private void animateMergeHull() {
+        if (animation != null) {
+            animation.stop();
+        }
+        
+        drawPoints(); // Draw base layer
+        
+        if (mergeSteps.isEmpty()) return;
+        
+        // Create animation timeline
+        animation = new Timeline();
+        final int[] currentStep = {0};
+        
+        KeyFrame frame = new KeyFrame(Duration.millis(animationSpeed), e -> {
+            if (currentStep[0] < mergeSteps.size()) {
+                drawMergeStep(currentStep[0]);
+                currentStep[0]++;
+            } else {
+                animation.stop();
+                drawHull();
+            }
+        });
+        
+        animation.getKeyFrames().add(frame);
+        animation.setCycleCount(mergeSteps.size() + 1);
+        animation.play();
+    }
+    
+    private void drawMergeStep(int step) {
+        clearCanvas();
+        drawPoints();
+        
+        List<Point2D> currentStep = mergeSteps.get(step);
+        List<Point2D> left = new ArrayList<>();
+        List<Point2D> right = new ArrayList<>();
+        List<Point2D> merged = new ArrayList<>();
+        
+        boolean inRight = false;
+        boolean inMerged = false;
+        
+        for (Point2D p : currentStep) {
+            if (Double.isNaN(p.getX())) {
+                if (!inRight) {
+                    inRight = true;
+                } else {
+                    inMerged = true;
+                }
+                continue;
+            }
+            
+            if (!inRight) {
+                left.add(p);
+            } else if (!inMerged) {
+                right.add(p);
+            } else {
+                merged.add(p);
+            }
+        }
+        
+        // Draw left subset and hull
+        drawSubHull(left, Color.rgb(20, 20, 220), "Left");
+        
+        // Draw right subset and hull
+        drawSubHull(right, Color.rgb(20, 220, 20), "Right");
+        
+        // Draw merged hull if present
+        if (!merged.isEmpty()) {
+            drawSubHull(merged, Color.rgb(220, 20, 20), "Merged");
+        }
+    }
+    
+    private void drawSubHull(List<Point2D> points, Color color, String label) {
+        if (points.isEmpty()) return;
+        
+        // Draw points
+        gc.setFill(color.deriveColor(0, 1, 1, 0.5));
+        for (Point2D p : points) {
+            double x = scaleX(p.getX());
+            double y = scaleY(p.getY());
+            gc.fillOval(x - pointRadius, y - pointRadius, 
+                       pointRadius * 2, pointRadius * 2);
+        }
+        
+        // Draw hull
+        if (points.size() > 1) {
+            gc.setStroke(color);
+            gc.setLineWidth(2);
+            gc.beginPath();
+            Point2D first = points.get(0);
+            gc.moveTo(scaleX(first.getX()), scaleY(first.getY()));
+            
+            for (int i = 1; i < points.size(); i++) {
+                Point2D p = points.get(i);
+                gc.lineTo(scaleX(p.getX()), scaleY(p.getY()));
+            }
+            
+            gc.closePath();
+            gc.stroke();
+        }
+        
+        // Draw label
+        if (!label.isEmpty()) {
+            Point2D first = points.get(0);
+            gc.setFill(color);
+            gc.setFont(Font.font("System", FontWeight.BOLD, 10));
+            gc.fillText(label, scaleX(first.getX()) + 5, scaleY(first.getY()) - 5);
+        }
+    }
+    
     private void clearCanvas() {
         // Draw background
         gc.setFill(CANVAS_BG_COLOR);
@@ -985,12 +1233,12 @@ public class ConvexHullVisualizer extends Application {
     
     private HBox createFooter() {
         HBox footer = new HBox();
-        footer.setPadding(new Insets(10, 20, 10, 20));
+        footer.setPadding(new Insets(8, 15, 8, 15)); // Reduced padding
         footer.setAlignment(Pos.CENTER);
         footer.setStyle("-fx-background-color: rgb(30, 30, 30);");
         
         Label footerText = new Label("Elite Computation by Abdelrahman Elnagar, Alaa Ashraf and Sarah Elfeel");
-        footerText.setFont(Font.font("System", FontWeight.BOLD, 14));
+        footerText.setFont(Font.font("System", FontWeight.BOLD, 12)); // Reduced font size
         footerText.setTextFill(TEXT_COLOR);
         
         footer.getChildren().add(footerText);
