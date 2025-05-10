@@ -1,4 +1,51 @@
+# Compiled class files
 *.class
 **/*.class
-.idea/*
-target/*
+
+# IDE files
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.classpath
+.project
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Logs
+*.log
+logs/
+log/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Build output
+bin/
+build/
+out/
+
+# Test coverage
+coverage/
+.coverage
+htmlcov/
+
+# Temporary files
+*.swp
+*.swo
+*~
+*.bak
+*.tmp
