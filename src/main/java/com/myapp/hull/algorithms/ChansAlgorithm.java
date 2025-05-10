@@ -20,6 +20,8 @@ public class ChansAlgorithm implements ConvexHullAlgorithm {
 
     
 
+    
+
 	
 
 	public static Point2D[] computeHull(Point2D[] points) {
@@ -79,14 +81,22 @@ public class ChansAlgorithm implements ConvexHullAlgorithm {
 		return conv;
 	}
 
-	public static Point2D[][] getPartialHulls(Point2D[] points) {
+	public static List<List<Point2D>> getPartialHulls(Point2D[] points) {
 		// Run computeHull to get the last computed group of hulls
 		computeHull(points);
-		// Return the last computed group of hulls
-		return convGroups;
+		// Convert the 2D array to a list of lists
+		List<List<Point2D>> result = new ArrayList<>();
+		if (convGroups != null) {
+			for (Point2D[] hull : convGroups) {
+				if (hull != null) {
+					result.add(Arrays.asList(hull));
+				}
+			}
+		}
+		return result;
 	}
 
-	public static Point2D[][] getPartialHulls(List<Point2D> points) {
+	public static List<List<Point2D>> getPartialHulls(List<Point2D> points) {
 		return getPartialHulls(points.toArray(new Point2D[0]));
 	}
 }
