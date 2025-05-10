@@ -8,6 +8,7 @@ import java.util.Optional;
 import com.myapp.hull.Point2D;
 import com.myapp.hull.PointReader;
 import com.myapp.hull.PointWriter;
+import com.myapp.hull.algorithms.Chans;
 import com.myapp.hull.algorithms.ChansAlgorithm;
 import com.myapp.hull.algorithms.ConvexHullAlgorithm;
 import com.myapp.hull.algorithms.GrahamScan;
@@ -340,7 +341,7 @@ public class ConvexHullVisualizer extends Application {
                     algoDescription.setText("Graham Scan: Efficient O(n log n) algorithm that sorts points by angle and builds the hull incrementally. Best for general use cases.");
                     break;
                 case "Chan's Algorithm":
-                    currentAlgorithm = new ChansAlgorithm();
+                    currentAlgorithm = new Chans();
                     algoDescription.setText("Chan's Algorithm: Optimal O(n log h) algorithm that combines Graham Scan with divide-and-conquer. Best for large point sets with small hulls.");
                     break;
                 case "Merge Hull":

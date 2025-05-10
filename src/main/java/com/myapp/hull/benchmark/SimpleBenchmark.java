@@ -3,6 +3,7 @@ package com.myapp.hull.benchmark;
 import com.myapp.hull.Point2D;
 import com.myapp.hull.algorithms.ConvexHullAlgorithm;
 import com.myapp.hull.algorithms.GrahamScan;
+import com.myapp.hull.algorithms.Chans;
 import com.myapp.hull.algorithms.ChansAlgorithm;
 import com.myapp.hull.algorithms.MergeHullAlgorithm;
 
@@ -26,7 +27,7 @@ public class SimpleBenchmark {
             
             // Run benchmarks for each algorithm
             runBenchmarks(new GrahamScan(), "GrahamScan", writer);
-            runBenchmarks(new ChansAlgorithm(), "ChansAlgorithm", writer);
+            runBenchmarks(new Chans(), "ChansAlgorithm", writer);
             runBenchmarks(new MergeHullAlgorithm(), "MergeHull", writer);
             
             System.out.println("\nBenchmarks completed. Results saved to benchmark_results.csv");
