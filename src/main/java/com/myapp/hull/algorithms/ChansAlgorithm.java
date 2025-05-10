@@ -52,7 +52,7 @@ public class ChansAlgorithm implements ConvexHullAlgorithm {
 				convSj[i] = GrahamsScan.computeHull(groups[i]);
 			}
 			
-			conv = JarvisMarch.computeHull(convSj, hStar);
+			conv = JarvisMarchh.computeHull(convSj, hStar);
 			if(conv != null || hStar >= n) {
 				break;
 			}
@@ -91,7 +91,7 @@ public class ChansAlgorithm implements ConvexHullAlgorithm {
 	}
 }
 
-class JarvisMarch {
+class JarvisMarchh {
 	
 	private static int circleAccess(int length, int index) {
 		return (index+length) % length;
