@@ -36,7 +36,7 @@ public class ChansAlgorithm implements ConvexHullAlgorithm {
 		
 		convGroups = null;
 		
-		for(;;) {
+		while(true) {
 			int n = pts.length;
 			int nGroups = (n + hStar - 1) / hStar; // round up
 			
@@ -281,9 +281,11 @@ class GrahamsScan {
 				   Maths.squaredDistance(b.getX()-minPt.getX(), b.getY()-minPt.getY())) {
 					// keep a
 					andere.remove(i);
+					l=andere.size();
 				} else {
 					// keep b
 					andere.remove(i-1);
+					l=andere.size();
 				}
 				i--;
 			}

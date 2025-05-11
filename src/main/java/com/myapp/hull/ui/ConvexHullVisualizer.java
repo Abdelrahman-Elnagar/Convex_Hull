@@ -792,50 +792,75 @@ public class ConvexHullVisualizer extends Application {
         if (animation != null) {
             animation.stop();
         }
-        
+
         drawPoints(); // Draw base layer
-        
+
         if (hull.isEmpty()) return;
-        
-        // Create animation timeline
+
+        // Two-phase animation: 1) Show sub-hulls, 2) Animate Jarvis step
         animation = new Timeline();
+        final int[] phase = {0}; // 0 = show sub-hulls, 1 = animate Jarvis
         final int[] currentEdge = {0};
-        
+        final int subHullFrames = 30; // Show sub-hulls for this many frames
+
         KeyFrame frame = new KeyFrame(Duration.millis(animationSpeed), e -> {
-            switch (currentChanStep) {
-                case CHAN_STEP_GRAHAM:
-                    // Draw partial hulls from Graham Scan
-//                    drawPartialHulls();
-                    if (currentEdge[0] >= partialHulls.size()) {
-                        currentChanStep = CHAN_STEP_JARVIS;
-                        currentEdge[0] = 0;
-                    } else {
-                        currentEdge[0]++;
-                    }
-                    break;
-                    
-                case CHAN_STEP_JARVIS:
-                    // Draw Jarvis March steps
-                    if (currentEdge[0] < hull.size()) {
-                        drawJarvisStep(currentEdge[0]);
-                        currentEdge[0]++;
-                    } else {
-                        currentChanStep = CHAN_STEP_FINAL;
-                        currentEdge[0] = 0;
-                    }
-                    break;
-                    
-                case CHAN_STEP_FINAL:
-                    // Draw final hull
-                    drawHull();
-                    animation.stop();
-                    break;
+            if (phase[0] == 0) {
+                // Phase 1: Show sub-hulls
+                drawPoints();
+                drawPartialHulls();
+                currentEdge[0]++;
+                if (currentEdge[0] >= subHullFrames) {
+                    phase[0] = 1;
+                    currentEdge[0] = 0;
+                }
+            } else if (phase[0] == 1) {
+                // Phase 2: Animate binary Jarvis step (building the global hull)
+                drawPoints();
+                drawPartialHulls();
+                drawJarvisStepFromSubHulls(currentEdge[0]);
+                currentEdge[0]++;
+                if (currentEdge[0] > hull.size()) {
+                    phase[0] = 2;
+                    currentEdge[0] = 0;
+                }
+            } else {
+                // Final phase: Draw the complete hull
+                drawPoints();
+                drawPartialHulls();
+                drawHull();
+                animation.stop();
             }
         });
-        
+
         animation.getKeyFrames().add(frame);
         animation.setCycleCount(Animation.INDEFINITE);
         animation.play();
+    }
+
+    // Draws the global hull as it is being constructed from the sub-hulls (binary Jarvis step)
+    private void drawJarvisStepFromSubHulls(int step) {
+        if (hull.isEmpty() || partialHulls.isEmpty()) return;
+
+        // Draw the global hull up to the current step
+        gc.setStroke(Color.BLACK);
+        gc.setLineWidth(3.5);
+        gc.beginPath();
+        Point2D first = hull.get(0);
+        gc.moveTo(scaleX(first.getX()), scaleY(first.getY()));
+        for (int i = 1; i <= step && i < hull.size(); i++) {
+            Point2D point = hull.get(i % hull.size());
+            gc.lineTo(scaleX(point.getX()), scaleY(point.getY()));
+        }
+        gc.stroke();
+
+        // Optionally, highlight the current vertex
+        if (step < hull.size()) {
+            Point2D currentPoint = hull.get(step % hull.size());
+            gc.setFill(Color.BLACK);
+            double x = scaleX(currentPoint.getX());
+            double y = scaleY(currentPoint.getY());
+            gc.fillOval(x - pointRadius - 3, y - pointRadius - 3, (pointRadius + 3) * 2, (pointRadius + 3) * 2);
+        }
     }
     
     private void drawPartialHulls() {
@@ -895,44 +920,6 @@ public class ConvexHullVisualizer extends Application {
                            (pointRadius + 1) * 2, (pointRadius + 1) * 2);
             }
         }
-    }
-    
-    private void drawJarvisStep(int step) {
-        // Draw all edges up to current step
-        gc.setStroke(HULL_COLOR);
-        gc.setLineWidth(2.5);
-        
-        gc.beginPath();
-        Point2D first = hull.get(0);
-        gc.moveTo(scaleX(first.getX()), scaleY(first.getY()));
-        
-        for (int i = 1; i <= step; i++) {
-            Point2D point = hull.get(i % hull.size());
-            gc.lineTo(scaleX(point.getX()), scaleY(point.getY()));
-        }
-        
-        gc.stroke();
-        
-        // Draw filled area for current step with higher transparency
-        gc.setFill(Color.rgb(220, 20, 20, 0.15)); // Increased transparency
-        gc.beginPath();
-        gc.moveTo(scaleX(first.getX()), scaleY(first.getY()));
-        
-        for (int i = 1; i <= step; i++) {
-            Point2D point = hull.get(i % hull.size());
-            gc.lineTo(scaleX(point.getX()), scaleY(point.getY()));
-        }
-        
-        gc.closePath();
-        gc.fill();
-        
-        // Highlight current vertex
-        Point2D currentPoint = hull.get(step % hull.size());
-        gc.setFill(HULL_COLOR);
-        double x = scaleX(currentPoint.getX());
-        double y = scaleY(currentPoint.getY());
-        gc.fillOval(x - pointRadius - 2, y - pointRadius - 2, 
-                   (pointRadius + 2) * 2, (pointRadius + 2) * 2);
     }
     
     private void animateMergeHull() {
