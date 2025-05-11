@@ -1,28 +1,31 @@
 package com.myapp.hull.benchmark;
 
-import com.myapp.hull.Point2D;
-import com.myapp.hull.algorithms.ConvexHullAlgorithm;
-import com.myapp.hull.algorithms.GrahamScan;
-import com.myapp.hull.algorithms.ChansAlgorithm;
-import com.myapp.hull.algorithms.MergeHullAlgorithm;
-
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
+import com.myapp.hull.Point2D;
+import com.myapp.hull.algorithms.ChansAlgorithm;
+import com.myapp.hull.algorithms.ConvexHullAlgorithm;
+import com.myapp.hull.algorithms.GrahamScan;
+import com.myapp.hull.algorithms.MergeHullAlgorithm;
+
 public class SimpleBenchmark {
-    private static final int WARMUP_ITERATIONS = 3;
-    private static final int MEASUREMENT_ITERATIONS = 5;
-    private static final int[] POINT_COUNTS = {100000, 500000, 1000000, 2000000, 5000000};
+    private static final int WARMUP_ITERATIONS = 5;
+    private static final int MEASUREMENT_ITERATIONS = 10;
+    private static final int[] POINT_COUNTS = {
+        1000, 5000, 10000, 50000, 100000, 
+        500000, 1000000, 2000000, 5000000, 10000000
+    };
 
     public static void main(String[] args) {
         System.out.println("Starting convex hull benchmarks...");
         
         try (FileWriter writer = new FileWriter("benchmark_results.csv")) {
-            // Write header
-            writer.write("Algorithm,PointCount,Time(ms),Complexity\n");
+            // Write header with more detailed information
+            writer.write("Algorithm,PointCount,Time(ms),Complexity,Iteration,MemoryUsage(MB)\n");
             
             // Run benchmarks for each algorithm
             runBenchmarks(new GrahamScan(), "GrahamScan", writer);
@@ -51,25 +54,30 @@ public class SimpleBenchmark {
             }
             
             // Measurement
-            long totalTime = 0;
             for (int i = 0; i < MEASUREMENT_ITERATIONS; i++) {
+                // Force garbage collection before measurement
+                System.gc();
+                
                 long startTime = System.nanoTime();
-                algorithm.computeHull(points);
+                List<Point2D> hull = algorithm.computeHull(points);
                 long endTime = System.nanoTime();
-                totalTime += (endTime - startTime);
+                
+                // Calculate memory usage
+                long memoryUsage = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024 * 1024);
+                
+                // Calculate time in milliseconds
+                double timeMs = (endTime - startTime) / 1_000_000.0;
+                
+                // Determine complexity
+                String complexity = determineComplexity(algorithmName);
+                
+                // Write results for each iteration
+                writer.write(String.format("%s,%d,%.3f,%s,%d,%d\n", 
+                    algorithmName, pointCount, timeMs, complexity, i + 1, memoryUsage));
+                
+                System.out.printf("Iteration %d: %.3f ms, Memory: %d MB\n", 
+                    i + 1, timeMs, memoryUsage);
             }
-            
-            // Calculate average time in milliseconds
-            double avgTime = (totalTime / MEASUREMENT_ITERATIONS) / 1_000_000.0;
-            
-            // Determine complexity
-            String complexity = determineComplexity(algorithmName);
-            
-            // Write results
-            writer.write(String.format("%s,%d,%.3f,%s\n", 
-                algorithmName, pointCount, avgTime, complexity));
-            
-            System.out.printf("Average time: %.3f ms\n", avgTime);
         }
     }
 
