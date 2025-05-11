@@ -27,7 +27,7 @@ public class HullDriver {
 
     public static void main(String[] args) {
         args = new String[] {
-            "--algorithm=graham",
+            "--algorithm=chan",
             "--input=tt.txt"
         };
         if (args.length != 2) {

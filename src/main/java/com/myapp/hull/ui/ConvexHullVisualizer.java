@@ -1,6 +1,9 @@
 package com.myapp.hull.ui;
 
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -608,8 +611,20 @@ public class ConvexHullVisualizer extends Application {
                 points.add(new Point2D(x, y));
             }
             
+            // Save points to file
+            try {
+                File file = new File("currRandom.txt");
+                PrintWriter writer = new PrintWriter(new FileWriter(file));
+                for (Point2D point : points) {
+                    writer.printf("%.2f %.2f%n", point.getX(), point.getY());
+                }
+                writer.close();
+                updateStatus("Generated " + numPoints + " random points and saved to currRandom.txt");
+            } catch (IOException e) {
+                showError("File Error", "Failed to save points to file: " + e.getMessage());
+            }
+            
             drawPoints();
-            updateStatus("Generated " + numPoints + " random points");
         });
     }
     
