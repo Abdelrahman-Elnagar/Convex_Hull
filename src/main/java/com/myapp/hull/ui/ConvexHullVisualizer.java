@@ -535,6 +535,20 @@ public class ConvexHullVisualizer extends Application {
         return button;
     }
     
+    private void savePointsToFile(List<Point2D> points, String filename) {
+        try {
+            File file = new File(filename);
+            PrintWriter writer = new PrintWriter(new FileWriter(file));
+            for (Point2D point : points) {
+                writer.printf("%.2f %.2f%n", point.getX(), point.getY());
+            }
+            writer.close();
+            updateStatus("Points saved to " + filename);
+        } catch (IOException e) {
+            showError("File Error", "Failed to save points to file: " + e.getMessage());
+        }
+    }
+
     private void generateRandomPoints() {
         // Create a custom dialog for number input
         Dialog<Integer> dialog = new Dialog<>();
@@ -612,17 +626,7 @@ public class ConvexHullVisualizer extends Application {
             }
             
             // Save points to file
-            try {
-                File file = new File("currRandom.txt");
-                PrintWriter writer = new PrintWriter(new FileWriter(file));
-                for (Point2D point : points) {
-                    writer.printf("%.2f %.2f%n", point.getX(), point.getY());
-                }
-                writer.close();
-                updateStatus("Generated " + numPoints + " random points and saved to currRandom.txt");
-            } catch (IOException e) {
-                showError("File Error", "Failed to save points to file: " + e.getMessage());
-            }
+            savePointsToFile(points, "currRandom.txt");
             
             drawPoints();
         });
@@ -681,6 +685,7 @@ public class ConvexHullVisualizer extends Application {
             showError("Error", "No points to compute hull from");
             return;
         }
+        savePointsToFile(points, "currRandom.txt");
         
         try {
             long startTime = System.currentTimeMillis();

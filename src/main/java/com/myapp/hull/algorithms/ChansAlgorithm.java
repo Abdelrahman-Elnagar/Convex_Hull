@@ -15,7 +15,7 @@ public class ChansAlgorithm implements ConvexHullAlgorithm {
 
 	@Override
 	public List<Point2D> computeHull(List<Point2D> points) {
-		return Arrays.asList(computeHull(points.toArray(new Point2D[0]), 5));
+		return Arrays.asList(computeHull(points.toArray(new Point2D[0]), 0));
 	}
 
     
@@ -25,21 +25,22 @@ public class ChansAlgorithm implements ConvexHullAlgorithm {
 	
 
 	public static Point2D[] computeHull(Point2D[] points) {
-		return computeHull(points, 5);
+		return computeHull(points, 0);
 	}
 
-	public static Point2D[] computeHull(Point2D[] points, int hStar) {
+	public static Point2D[] computeHull(Point2D[] points, int t) {
 		currentConv.clear();
 		
 		Point2D[] pts = ChansAlgorithm.allPts = ChansAlgorithm.pts = points;
 		Point2D[] conv;
 		
 		convGroups = null;
-		
+		int y= points.length;
 		while(true) {
-			int n = pts.length;
+			t++;
+			int hStar = (int)Math.min(y, 1l<<(1l<<t));
+			int n= pts.length;
 			int nGroups = (n + hStar - 1) / hStar; // round up
-			
 			// divide points into smaller groups for Graham's Scan
 			Point2D[][] Sj = groups = new Point2D[nGroups][];
 			for(int i=0, j=0; i<n;) {

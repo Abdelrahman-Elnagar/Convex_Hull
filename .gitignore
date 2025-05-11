@@ -49,3 +49,5 @@ htmlcov/
 *~
 *.bak
 *.tmp
+
+currRandom.txt
