@@ -1,4 +1,4 @@
-package com.myapp.hull.benchmark;
+package com.myapp.hull.benchmark.Benchmarkcodes;
 
 import java.io.FileWriter;
 import java.io.IOException;
