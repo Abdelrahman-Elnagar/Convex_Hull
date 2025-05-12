@@ -28,11 +28,6 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
         if (points == null || points.isEmpty()){
             return new ArrayList<>();
         }
-        if(pointsArray.length <= 2) {
-            computationSteps.add(new ArrayList<>(Arrays.asList(pointsArray)));
-            return new ArrayList<>(Arrays.asList(pointsArray));
-        }
-
            
         // Sort by x-coordinate and then by y-coordinate in case of ties
         Arrays.sort(pointsArray, (a, b) -> Double.compare(a.getX(), b.getX()) != 0 ? 
@@ -45,39 +40,10 @@ public class MergeHullAlgorithm implements ConvexHullAlgorithm {
         // Apply divide-and-conquer algorithm
         List<Point2D> hull = divideAndConquerHull(pointsArray);
         
-        // Ensure the points are in the expected order (start with bottom-left point) for the animation
-        arrangeHullStartingFromBottomLeft(hull);
-        
         // Record final hull
         computationSteps.add(new ArrayList<>(hull));
         
         return hull;
-    }
-    
-    private void arrangeHullStartingFromBottomLeft(List<Point2D> hull) {
-        if (hull.size() <= 2) return;
-        
-        // Find the bottom-left point
-        int bottomLeftIdx = 0;
-        for (int i = 1; i < hull.size(); i++) {
-            Point2D current = hull.get(i);
-            Point2D bottomLeft = hull.get(bottomLeftIdx);
-            
-            if (current.getY() < bottomLeft.getY() || 
-                (current.getY() == bottomLeft.getY() && current.getX() < bottomLeft.getX())) {
-                bottomLeftIdx = i;
-            }
-        }
-        
-        // Rotate the list to start with the bottom-left point
-        if (bottomLeftIdx != 0) {
-            List<Point2D> rotated = new ArrayList<>();
-            for (int i = 0; i < hull.size(); i++) {
-                rotated.add(hull.get((i + bottomLeftIdx) % hull.size()));
-            }
-            hull.clear();
-            hull.addAll(rotated);
-        }
     }
     
     private List<Point2D> divideAndConquerHull(Point2D[] points) {

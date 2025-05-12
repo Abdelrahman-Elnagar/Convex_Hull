@@ -213,14 +213,14 @@ public class ConvexHullVisualizer extends Application {
         // Initial canvas setup
         clearCanvas();
         
-        Scene scene = new Scene(root, 1200, 800);
+        Scene scene = new Scene(root, 1200, 900);
         
         // Apply CSS styles directly to the scene - no external CSS file
         applyStyles(scene);
         
         primaryStage.setTitle("Premium Convex Hull Visualizer");
         primaryStage.setScene(scene);
-        primaryStage.setResizable(false); // Make window size fixed
+        primaryStage.setResizable(true);
         primaryStage.show();
     }
     
@@ -1556,14 +1556,15 @@ private VBox createMergeHullContent() {
     
     VBox steps = new VBox(8);
     steps.getChildren().addAll(
-        createStepLabel("1. If the number of points is small (3 or less), compute hull directly"),
+        createStepLabel("1. If the number of points is small (2 or less), compute hull directly"),
         createStepLabel("2. Otherwise, divide points into left and right halves (by x-coordinate)"),
         createStepLabel("3. Recursively compute the convex hull of the left half"),
         createStepLabel("4. Recursively compute the convex hull of the right half"),
         createStepLabel("5. Merge the two hulls:"),
         createStepLabel("   a. Find the upper tangent between hulls"),
         createStepLabel("   b. Find the lower tangent between hulls"),
-        createStepLabel("   c. Merge the two hulls along these tangents")
+        createStepLabel("   c. Merge the two hulls along these tangents"), 
+        createStepLabel("(by inserting the hull points of the left hull from the left lower tangent point clockwise to the upper tangent then add the hull points of the right hull from the right upper tangent point clockwise to the lower tangent point).")
     );
     
     // Best and worst case scenarios
