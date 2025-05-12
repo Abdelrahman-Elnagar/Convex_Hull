@@ -1454,12 +1454,32 @@ private VBox createChanContent() {
     
     VBox steps = new VBox(8);
     steps.getChildren().addAll(
-        createStepLabel("1. Partition points into √n subsets of size √n each"),
-        createStepLabel("2. Compute the convex hull of each subset using Graham scan (O(√n log √n) each)"),
+        createStepLabel("1. Partition points into n/m subsets of size m each"),
+        createStepLabel("2. Compute the convex hull of each subset using Graham scan (O(n/m * m log m) = O(n*log(m)) = O(n*log(h)) each)"),
         createStepLabel("3. Use a modified Jarvis March (gift wrapping) to compute the overall hull"),
         createStepLabel("4. For each step of Jarvis March, find the most counterclockwise point"),
         createStepLabel("5. Use binary search on each sub-hull to find the most counterclockwise point"),
-        createStepLabel("6. If h is not known, use doubling with increasing guesses for h")
+        createStepLabel("6. Time Complexity of Jarvis March: O(h* n/m * log (m)) = O(n*log(m)) = O(n*log(h))"),
+        createStepLabel("7. If hull is not found with m nodes, increase m super-exponentially")
+    );
+
+    // Steps section
+    Label mTitle = new Label("Choice of parameter m");
+    mTitle.setFont(Font.font("System", FontWeight.BOLD, 14));
+    mTitle.setTextFill(TEXT_COLOR);
+    
+    VBox m = new VBox(8);
+    m.getChildren().addAll(
+        createStepLabel("- If an arbitrary value for m is chosen, it may happen that m<h"),
+        createStepLabel("  (where h is the number of points in the convex hull)."),
+        createStepLabel("- If m < h, after m steps in the second phase, the Jarvis march is interrupted"),
+        createStepLabel("  to avoid excessive computation time."),
+        createStepLabel("- At this point, O(n log m) time will have been spent, but the convex hull will not have been computed."),
+        createStepLabel("- The solution is to make multiple passes of the algorithm with increasing values of m."),
+        createStepLabel("- Each pass terminates in O(n log m) time, whether it is successful or not."),
+        createStepLabel("- If m increases too slowly between passes, the number of iterations may be large."),
+        createStepLabel("- If m increases too quickly, the first m that results in a successful termination may be much larger than h, "),
+        createStepLabel("  leading to a complexity of O(n log m) > O(n log h).")
     );
     
     // Best and worst case scenarios
@@ -1486,6 +1506,9 @@ private VBox createChanContent() {
         new Separator(),
         stepsTitle,
         steps,
+        new Separator(),
+        mTitle,
+        m,
         new Separator(),
         casesTitle,
         cases,
