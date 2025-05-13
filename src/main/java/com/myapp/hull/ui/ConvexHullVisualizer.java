@@ -220,7 +220,7 @@ public class ConvexHullVisualizer extends Application {
         
         primaryStage.setTitle("Premium Convex Hull Visualizer");
         primaryStage.setScene(scene);
-        primaryStage.setResizable(true); // Make window size fixed
+        primaryStage.setResizable(false); // Make window size fixed
         primaryStage.show();
     }
     
