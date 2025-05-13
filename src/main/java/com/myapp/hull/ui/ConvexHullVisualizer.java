@@ -2415,6 +2415,16 @@ private void drawArrow(GraphicsContext gc, Point2D start, Point2D end, Color col
             "Shows the memory consumption of each algorithm.\n" +
             "Important for understanding space complexity and practical memory requirements.");
         
+        addBenchmarkImage(content, basePath + "benchmark_results.png",
+            "Performance Comparison (1-5,000,000 points)\n" +
+            "Shows the execution time of each algorithm for different input sizes.\n" +
+            "• Graham Scan: O(n log n)\n" +
+            "• Chan's Algorithm: O(n log h)\n" +
+            "• Merge Hull: O(n log n)");
+        addBenchmarkImage(content, basePath + "memory_usage.png",
+            "Memory Usage Comparison (1-5,000,000 points)\n" +
+            "Shows the memory consumption of each algorithm.\n" +
+            "Important for understanding space complexity and practical memory requirements.");
         scrollPane.setContent(content);
         scrollPane.setFitToWidth(true);
         scrollPane.setPrefHeight(600);

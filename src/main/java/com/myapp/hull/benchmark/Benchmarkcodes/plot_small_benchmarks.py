@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Read the CSV file
-df = pd.read_csv('small_benchmark_results.csv')
+df = pd.read_csv('D:\ConvexHull\small_benchmark_results.csv')
 
 # Create the time plot
 plt.figure(figsize=(12, 8))
