@@ -316,6 +316,11 @@ public class ConvexHullVisualizer extends Application {
         algorithmInstruction.setTextFill(TEXT_COLOR);
         
         instructionsBox.getChildren().addAll(instructionsTitle, clickInstruction, dragInstruction, algorithmInstruction);
+        
+        // Add benchmark results button
+        Button benchmarkButton = createActionButton("Show Benchmark Results", "chart-bar");
+        benchmarkButton.setOnAction(e -> showBenchmarkResults());
+        
         // Open algorithm analysis page
         Button complexityButton = createActionButton("Algorithm Analysis", "chart-line");
         complexityButton.setOnAction(e -> showComplexityAnalysis());
@@ -436,6 +441,7 @@ public class ConvexHullVisualizer extends Application {
             instructionsBox,
             createSeparator(),
             complexityButton,
+            benchmarkButton,  // Add the new button here
             createSeparator(),
             algoLabel, algorithmCombo,
             algoDescription,
@@ -2376,6 +2382,88 @@ private void drawArrow(GraphicsContext gc, Point2D start, Point2D end, Color col
     gc.closePath();
     gc.fill();
 }
+    
+    private void showBenchmarkResults() {
+        Dialog<Void> dialog = new Dialog<>();
+        dialog.setTitle("Benchmark Results");
+        dialog.setHeaderText("Convex Hull Algorithms Performance Analysis");
+        
+        // Create a scrollable content area
+        ScrollPane scrollPane = new ScrollPane();
+        VBox content = new VBox(20);
+        content.setPadding(new Insets(20));
+        content.setStyle("-fx-background-color: rgb(40, 40, 40);");
+        
+        // Define the base path for benchmark images
+        String basePath = "D:\\ConvexHull\\src\\main\\java\\com\\myapp\\hull\\benchmark\\resources\\";
+        
+        // Add benchmark images with descriptions
+        addBenchmarkImage(content, basePath + "small_benchmark_results.png", 
+            "Performance Comparison (1-10,000 points)\n" +
+            "Shows the execution time of each algorithm for different input sizes.\n" +
+            "• Graham Scan: O(n log n)\n" +
+            "• Chan's Algorithm: O(n log h)\n" +
+            "• Merge Hull: O(n log n)");
+        
+        addBenchmarkImage(content, basePath + "small_benchmark_results_smooth.png",
+            "Smoothed Performance Comparison\n" +
+            "A smoothed version of the performance graph to better visualize trends.\n" +
+            "Uses a moving average to reduce noise in the data.");
+        
+        addBenchmarkImage(content, basePath + "small_memory_usage.png",
+            "Memory Usage Comparison\n" +
+            "Shows the memory consumption of each algorithm.\n" +
+            "Important for understanding space complexity and practical memory requirements.");
+        
+        scrollPane.setContent(content);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setPrefHeight(600);
+        
+        DialogPane dialogPane = dialog.getDialogPane();
+        dialogPane.setContent(scrollPane);
+        dialogPane.getButtonTypes().add(ButtonType.CLOSE);
+        
+        // Style the dialog
+        dialogPane.setStyle("-fx-background-color: rgb(40, 40, 40);");
+        for (Node node : dialogPane.getChildren()) {
+            if (node instanceof Label) {
+                ((Label) node).setTextFill(Color.WHITE);
+            }
+        }
+        
+        dialog.show();
+    }
+
+    private void addBenchmarkImage(VBox container, String imagePath, String description) {
+        try {
+            // Create image view
+            File imageFile = new File(imagePath);
+            if (!imageFile.exists()) {
+                Label errorLabel = new Label("Image not found: " + imagePath);
+                errorLabel.setTextFill(Color.RED);
+                container.getChildren().add(errorLabel);
+                return;
+            }
+            
+            Image image = new Image(imageFile.toURI().toString());
+            ImageView imageView = new ImageView(image);
+            imageView.setFitWidth(800);
+            imageView.setPreserveRatio(true);
+            
+            // Create description label
+            Label descLabel = new Label(description);
+            descLabel.setWrapText(true);
+            descLabel.setTextFill(Color.WHITE);
+            descLabel.setFont(Font.font("System", 12));
+            
+            // Add to container
+            container.getChildren().addAll(imageView, descLabel);
+        } catch (Exception e) {
+            Label errorLabel = new Label("Error loading image: " + imagePath + "\nError: " + e.getMessage());
+            errorLabel.setTextFill(Color.RED);
+            container.getChildren().add(errorLabel);
+        }
+    }
     
     public static void main(String[] args) {
         launch(args);

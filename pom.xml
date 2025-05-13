@@ -133,6 +133,16 @@
                             <mainClass>com.myapp.hull.benchmark.SimpleBenchmark</mainClass>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>run-small-benchmarks</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>com.myapp.hull.benchmark.SmallBenchmark</mainClass>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>
