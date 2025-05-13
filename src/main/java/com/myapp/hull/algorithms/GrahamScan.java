@@ -17,10 +17,8 @@ public class GrahamScan implements ConvexHullAlgorithm {
         if (points == null || points.size() < 2) {
             return new ArrayList<>(points);
         }
-
         // Convert List<Point2D> to Point2D[]
         Point2D[] pointsArray = points.toArray(new Point2D[0]);
-
         // Find the lowest point (and leftmost if tied)
         Point2D start = pointsArray[0];
         for (int i = 1; i < pointsArray.length; i++) {
@@ -34,6 +32,7 @@ public class GrahamScan implements ConvexHullAlgorithm {
         sortByPolarAngle(pointsArray, start);
 
         // Graham scan algorithm
+        // start by stack to store the points
         Stack<Point2D> stack = new Stack<>();
         stack.push(pointsArray[0]);
         
@@ -63,10 +62,10 @@ public class GrahamScan implements ConvexHullAlgorithm {
                 top = stack.pop();
             }
             
-            // Push our current best 'top' candidate back onto the stack
+            // Push our current best 'top' candidate back onto the stack that we took to test on the last three points
             stack.push(top);
             
-            // Now decide whether to add the current point to the hull
+            // Now decide whether to add the current point pointsArray[i] to the hull because we checked the case of collinearity with the prev two points but really didn't act yet 
             if (stack.size() < 2 || 
                 // Add if it makes a non-collinear turn with last two points
                 crossProduct(stack.get(stack.size() - 2), stack.peek(), pointsArray[i]) != 0) {
@@ -76,7 +75,7 @@ public class GrahamScan implements ConvexHullAlgorithm {
             else if (distanceSquared(stack.get(stack.size() - 2), pointsArray[i]) > 
                     distanceSquared(stack.get(stack.size() - 2), stack.peek())) {
                 // Replace last point with current point if it's further
-                stack.pop();
+                stack.pop(); // remove the cuurent and add it , if not the furthest then do nothing
                 stack.push(pointsArray[i]);
             }
         }
@@ -99,9 +98,9 @@ public class GrahamScan implements ConvexHullAlgorithm {
             double cp = crossProduct(start, p1, p2);
             if (cp == 0) {
                 // For collinear points, sort by distance from start
-                return Double.compare(distanceSquared(start, p1), distanceSquared(start, p2));
+                return Double.compare(distanceSquared(start, p1), distanceSquared(start, p2)); //+ve if first greater, -ve othewise
             } else {
-                // Sort by polar angle (counter-clockwise)
+                // Sort by polar angle (counter-clockwise) why the negative because cp returened the +ve for counter clockwise so we reverise it so sort function put it in the begging 
                 return -Double.compare(cp, 0);
             }
         });
@@ -122,11 +121,12 @@ public class GrahamScan implements ConvexHullAlgorithm {
      * If result = 0: collinear
      * If result < 0: clockwise turn
      */
-    private double crossProduct(Point2D a, Point2D b, Point2D c) {
-        double y1 = a.getY() - b.getY();
-        double y2 = a.getY() - c.getY();
-        double x1 = a.getX() - b.getX();
-        double x2 = a.getX() - c.getX();
-        return y2 * x1 - y1 * x2;
+    // ((qx-px)*(ry-py)-(qy-py)*(rx-px))
+    // the result is 0, the points are collinear;
+    // if it is positive, the three points constitute a "left turn" or counter-clockwise orientation,
+    // otherwise a "right turn" or clockwise orientation (for counter-clockwise numbered points).
+    private double crossProduct(Point2D p, Point2D q, Point2D r) {
+        return (q.getX() - p.getX()) * (r.getY() - p.getY())
+             - (q.getY() - p.getY()) * (r.getX() - p.getX());
     }
 } 
