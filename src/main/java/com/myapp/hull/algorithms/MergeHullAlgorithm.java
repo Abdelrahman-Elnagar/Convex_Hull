@@ -182,7 +182,7 @@ private int[] findUpperTangent(List<Point2D> leftHull, List<Point2D> rightHull) 
                 
                 int orientation = orientation(currentLeft, currentRight, nextRight);
                 
-                if (orientation <= 0) {
+                if (orientation >= 0) {
                     upperRightIndex = nextRightIndex;
                     done = false;
                 } else {
@@ -202,8 +202,8 @@ private int[] findUpperTangent(List<Point2D> leftHull, List<Point2D> rightHull) 
                 // Get the candidate next left point
                 Point2D nextLeft = leftHull.get(nextLeftIndex);
                 
-                int orientation = orientation(nextLeft, currentLeft, currentRight);
-                if (orientation <= 0) {
+                int orientation = orientation(currentLeft, currentRight, nextLeft);
+                if (orientation >= 0) {
                     upperLeftIndex = nextLeftIndex;
                 done = false;
                 } else {
@@ -264,7 +264,7 @@ private int[] findUpperTangent(List<Point2D> leftHull, List<Point2D> rightHull) 
                 Point2D nextRight = rightHull.get(nextRightIndex);
                 
                 int orientation = orientation(currentLeft, currentRight, nextRight);
-                if (orientation >= 0) {
+                if (orientation <= 0) {
                     lowerRightIndex = nextRightIndex;
                     done = false;
                 } else {
@@ -284,8 +284,8 @@ private int[] findUpperTangent(List<Point2D> leftHull, List<Point2D> rightHull) 
                 // Get the candidate next left point
                 Point2D nextLeft = leftHull.get(nextLeftIndex);
 
-                int orientation = orientation(nextLeft, currentLeft, currentRight);
-                if (orientation >= 0) {
+                int orientation = orientation(currentLeft, currentRight, nextLeft);
+                if (orientation <= 0) {
                     lowerLeftIndex = nextLeftIndex;
                     done = false;
                 } else {
