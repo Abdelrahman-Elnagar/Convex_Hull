@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -836,7 +837,7 @@ public class ConvexHullVisualizer extends Application {
         animation = new Timeline();
         final int[] phase = {0}; // 0 = show sub-hulls, 1 = animate Jarvis
         final int[] currentEdge = {0};
-        final int subHullFrames = 30; // Show sub-hulls for this many frames
+        final int subHullFrames = 10; // Reduced from 30 to 10 frames (0.5 seconds at default animation speed)
 
         KeyFrame frame = new KeyFrame(Duration.millis(animationSpeed), e -> {
             if (phase[0] == 0) {
@@ -2394,34 +2395,31 @@ private void drawArrow(GraphicsContext gc, Point2D start, Point2D end, Color col
         content.setPadding(new Insets(20));
         content.setStyle("-fx-background-color: rgb(40, 40, 40);");
         
-        // Define the base path for benchmark images
-        String basePath = "D:\\ConvexHull\\src\\main\\java\\com\\myapp\\hull\\benchmark\\resources\\";
-        
         // Add benchmark images with descriptions
-        addBenchmarkImage(content, basePath + "small_benchmark_results.png", 
+        addBenchmarkImage(content, "/benchmark/small_benchmark_results.png", 
             "Performance Comparison (1-10,000 points)\n" +
             "Shows the execution time of each algorithm for different input sizes.\n" +
             "• Graham Scan: O(n log n)\n" +
             "• Chan's Algorithm: O(n log h)\n" +
             "• Merge Hull: O(n log n)");
         
-        addBenchmarkImage(content, basePath + "small_benchmark_results_smooth.png",
+        addBenchmarkImage(content, "/benchmark/small_benchmark_results_smooth.png",
             "Smoothed Performance Comparison\n" +
             "A smoothed version of the performance graph to better visualize trends.\n" +
             "Uses a moving average to reduce noise in the data.");
         
-        addBenchmarkImage(content, basePath + "small_memory_usage.png",
+        addBenchmarkImage(content, "/benchmark/small_memory_usage.png",
             "Memory Usage Comparison\n" +
             "Shows the memory consumption of each algorithm.\n" +
             "Important for understanding space complexity and practical memory requirements.");
         
-        addBenchmarkImage(content, basePath + "benchmark_results.png",
+        addBenchmarkImage(content, "/benchmark/benchmark_results.png",
             "Performance Comparison (1-5,000,000 points)\n" +
             "Shows the execution time of each algorithm for different input sizes.\n" +
             "• Graham Scan: O(n log n)\n" +
             "• Chan's Algorithm: O(n log h)\n" +
             "• Merge Hull: O(n log n)");
-        addBenchmarkImage(content, basePath + "memory_usage.png",
+        addBenchmarkImage(content, "/benchmark/memory_usage.png",
             "Memory Usage Comparison (1-5,000,000 points)\n" +
             "Shows the memory consumption of each algorithm.\n" +
             "Important for understanding space complexity and practical memory requirements.");
@@ -2446,34 +2444,36 @@ private void drawArrow(GraphicsContext gc, Point2D start, Point2D end, Color col
 
     private void addBenchmarkImage(VBox container, String imagePath, String description) {
         try {
-            // Create image view
-            File imageFile = new File(imagePath);
-            if (!imageFile.exists()) {
+            // Try loading image as a resource from classpath
+            URL imageUrl = getClass().getResource(imagePath);
+            if (imageUrl == null) {
                 Label errorLabel = new Label("Image not found: " + imagePath);
                 errorLabel.setTextFill(Color.RED);
                 container.getChildren().add(errorLabel);
                 return;
             }
-            
-            Image image = new Image(imageFile.toURI().toString());
+    
+            Image image = new Image(imageUrl.toExternalForm());
             ImageView imageView = new ImageView(image);
             imageView.setFitWidth(800);
             imageView.setPreserveRatio(true);
-            
+    
             // Create description label
             Label descLabel = new Label(description);
             descLabel.setWrapText(true);
             descLabel.setTextFill(Color.WHITE);
             descLabel.setFont(Font.font("System", 12));
-            
+    
             // Add to container
             container.getChildren().addAll(imageView, descLabel);
+    
         } catch (Exception e) {
             Label errorLabel = new Label("Error loading image: " + imagePath + "\nError: " + e.getMessage());
             errorLabel.setTextFill(Color.RED);
             container.getChildren().add(errorLabel);
         }
     }
+    
     
     public static void main(String[] args) {
         launch(args);
