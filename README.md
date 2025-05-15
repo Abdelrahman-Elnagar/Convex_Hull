@@ -24,8 +24,9 @@ A Java application for computing and visualizing convex hulls using various algo
 ## Installation
 
 1. Make sure maven is installed
-  ```bash
+   ```bash
    mvn -version
+   ```
 2. To build the project:
    ```bash
    mvn clean compile
