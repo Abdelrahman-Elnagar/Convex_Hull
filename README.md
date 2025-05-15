@@ -13,18 +13,26 @@ A Java application for computing and visualizing convex hulls using various algo
 - Animation of hull construction
 - File I/O for point sets
 - Performance benchmarking
+- Complexity Analysis of the algorithms
 
 ## Requirements
 
 - Java 11 or later
 - JavaFX 17.0.2
+- Maven
 
 ## Installation
 
-1. Download the latest release JAR file
-2. Run the application:
+1. Make sure maven is installed
+  ```bash
+   mvn -version
+2. To build the project:
    ```bash
-   java -jar convex-hull-1.0-SNAPSHOT.jar
+   mvn clean compile
+   ```
+3. To run the project:
+   ```bash
+   mvn javafx:run
    ```
 
 ## Usage
@@ -34,8 +42,12 @@ A Java application for computing and visualizing convex hulls using various algo
 1. Launch the application
 2. Click on the canvas to add points
 3. Select an algorithm from the dropdown
-4. Click "Compute" to calculate the hull
-5. Use "Save" to export the hull points
+4. Select animation speed and point size
+5. Optionally select the checkbox to animate hull
+6. Click "Compute" to calculate the hull
+7. Use "Save" to export the hull points
+8. Check complexity analysis under "Algorithm Analysis"
+9. Check benchmark results under "Show Benchmark Results"
 
 ### Controls
 
@@ -62,8 +74,17 @@ x2 y2
 ![Main Window](docs/screenshots/main.png)
 *Main application window with points and hull*
 
-![Animation](docs/screenshots/animation.gif)
-*Hull construction animation*
+![Complexity](docs/screenshots/complexity.png)
+*Hull algorithm complexity explanation*
+
+![Benchmarks](docs/screenshots/benchmark.png)
+*Benchmark results*
+
+![Chan Animation](docs/screenshots/chan.gif)
+*Chan algorithm animation*
+
+![Merge Hull Animation](docs/screenshots/merge.gif)
+*Merge Hull algorithm animation*
 
 ## Performance
 
