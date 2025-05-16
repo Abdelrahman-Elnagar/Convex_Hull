@@ -14,6 +14,7 @@ import com.myapp.hull.Point2D;
 public class GrahamScan implements ConvexHullAlgorithm {
     @Override
     public List<Point2D> computeHull(List<Point2D> points) {
+        //Handle the base case
         if (points == null || points.size() < 2) {
             return new ArrayList<>(points);
         }
@@ -100,7 +101,7 @@ public class GrahamScan implements ConvexHullAlgorithm {
                 // For collinear points, sort by distance from start
                 return Double.compare(distanceSquared(start, p1), distanceSquared(start, p2)); //+ve if first greater, -ve othewise
             } else {
-                // Sort by polar angle (counter-clockwise) why the negative because cp returened the +ve for counter clockwise so we reverise it so sort function put it in the begging 
+                // Sort by polar angle (counter-clockwise) why the negative because cp returned the +ve for counter clockwise so we reverise it so sort function put it in the begging 
                 return -Double.compare(cp, 0);
             }
         });

@@ -1,11 +1,12 @@
 package com.myapp.hull.algorithms;
 
-import com.myapp.hull.Point2D;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+
 import com.myapp.hull.Maths;
+import com.myapp.hull.Point2D;
 
 public class ChansAlgorithm implements ConvexHullAlgorithm {
 	
@@ -15,8 +16,10 @@ public class ChansAlgorithm implements ConvexHullAlgorithm {
 
 	@Override
 	public List<Point2D> computeHull(List<Point2D> points) {
-		return Arrays.asList(computeHull(points.toArray(new Point2D[0]), 0));
+		Point2D[] arr = computeHull(points.toArray(new Point2D[0]), 0);
+		return new ArrayList<>(Arrays.asList(arr));
 	}
+
 
     
 
